@@ -123,9 +123,11 @@
   // ---- Saving and analysis ----
   let saveTimer = null;
   let analyzeTimer = null;
+  let unreadable = false; // the file on disk can't be read; never write over it
   function save() {
     clearTimeout(saveTimer);
     saveTimer = null;
+    if (unreadable) return;
     vscode.postMessage({ type: 'edit', model });
     if ($('status').classList.contains('done')) setStatus('');
     analyze();
@@ -884,7 +886,8 @@
     }
     const count = analysis ? analysis.warnings.length : 0;
     const issues = $('issues');
-    const label = !model.nodes.length ? '' : count ? `${count} to fix` : 'Ready';
+    const exportable = !!analysis && analysis.files.length > 0;
+    const label = !model.nodes.length ? '' : count ? `${count} to fix` : exportable ? 'Ready' : '';
     if (issues.dataset.label !== label) {
       issues.dataset.label = label;
       issues.replaceChildren(...(label ? [icon(count ? 'warning' : 'check', `icon ${count ? 'warn' : 'ok'}`), h('span', { text: label })] : []));
@@ -892,7 +895,9 @@
     issues.hidden = !label;
     issues.disabled = !count;
     issues.setAttribute('aria-label', count ? `${plural(count, 'thing', 'things')} to fix. Show the list.` : 'Ready to export');
-    $('export').disabled = !model.nodes.length;
+    const exportBtn = $('export');
+    exportBtn.disabled = !model.nodes.length || (!!analysis && !exportable);
+    exportBtn.title = exportBtn.disabled ? 'Add an Agent or Skill block to export' : 'Save the agents and skills as files';
   }
 
   // Things to fix.
@@ -1453,11 +1458,30 @@
     fillPreview();
   }
 
+  // Blocks the editor while the file can't be read (message), or lifts the block (null).
+  function showUnreadable(message) {
+    unreadable = message !== null;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    $('unreadable').hidden = !unreadable;
+    $('unreadable-detail').textContent = unreadable ? `Details: ${message}` : '';
+    $('topbar').inert = unreadable;
+    $('workspace').inert = unreadable;
+    if (unreadable) {
+      $('open-as-text').focus();
+      say("This canvas file can't be read. Nothing will be saved until it's fixed.");
+    }
+  }
+  $('open-as-text').addEventListener('click', () => vscode.postMessage({ type: 'openAsText' }));
+
   // ---- Messages from the extension ----
   let lastCommand = null;
   window.addEventListener('message', (evt) => {
     const msg = evt.data;
-    if (msg.type === 'load') {
+    if (msg.type === 'unreadable') {
+      showUnreadable(msg.message);
+    } else if (msg.type === 'load') {
+      if (unreadable) showUnreadable(null);
       model = msg.model;
       if (sel && ((sel.type === 'node' && !byId(sel.id)) || (sel.type === 'edge' && !model.edges.some((e) => e.id === sel.id)))) sel = null;
       render();
@@ -1490,6 +1514,12 @@
     } else if (msg.type === 'exported') {
       $('export').disabled = !model.nodes.length;
       const s = msg.summary;
+      if (msg.error) {
+        const saved = s && s.written ? ` ${plural(s.written, 'file was', 'files were')} saved before it stopped.` : '';
+        setStatus(`Export stopped: ${msg.error}.${saved}`);
+        say(`Export stopped. ${msg.error}`);
+        return;
+      }
       if (!s) return setStatus('');
       const next = s.command ? `Run ${s.command} in ${s.label} chat.` : `${s.label} can use them now.`;
       setStatus(`Saved ${plural(s.written, 'file', 'files')}${s.removed ? `, removed ${s.removed}` : ''}. ${next}`, { done: true });

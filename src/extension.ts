@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { CanvasEditorProvider } from './canvasEditor';
 import { buildExport, ROOTS } from './export';
-import { emptyModel, parseModel, Scope } from './model';
+import { emptyModel, readModel, Scope } from './model';
 
 export function activate(context: vscode.ExtensionContext) {
   const log = vscode.window.createOutputChannel('Skill Canvas', { log: true });
@@ -57,6 +57,8 @@ export interface ExportSummary {
   written: number;
   removed: number;
   label: string;
+  /** Set when the export stopped part-way. */
+  error?: string;
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -76,7 +78,18 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
     return;
   }
   const doc = await vscode.workspace.openTextDocument(uri);
-  const model = parseModel(doc.getText());
+  const { model, error: unreadable } = readModel(doc.getText());
+  if (unreadable) {
+    const open = 'Open as text';
+    const answer = await vscode.window.showErrorMessage(
+      `Can't export ${path.basename(uri.fsPath)}: the file isn't valid canvas JSON (${unreadable}). Fix it first.`,
+      open
+    );
+    if (answer === open) {
+      await vscode.commands.executeCommand('vscode.openWith', uri, 'default');
+    }
+    return;
+  }
   const target = model.target ?? 'claude';
   const { files, warnings, command } = buildExport(model, path.basename(uri.fsPath, '.skillcanvas'), target);
   if (!files.length) {
@@ -108,17 +121,24 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
   }
 
   // 2. What: every file, marked new, updated or replacing something, plus leftovers to remove.
+  // A file this canvas didn't write stays unchecked; if checked, the original goes to the trash.
   const previous = new Set(last?.scope === where.scope ? last.files : []);
-  type Item = vscode.QuickPickItem & { write?: (typeof files)[number]; remove?: string };
+  type Item = vscode.QuickPickItem & { write?: (typeof files)[number]; remove?: string; foreign?: boolean };
   const items: Item[] = [];
   for (const f of files) {
     const known = previous.has(f.path);
     const found = await exists(vscode.Uri.joinPath(where.root, ...f.path.split('/')));
+    const foreign = found && !known;
     items.push({
-      label: `${found && !known ? '$(warning)' : '$(file)'} ${f.path}`,
-      description: !found ? 'new' : known ? 'updates your last export' : 'replaces an existing file not made by this canvas',
-      picked: true,
+      label: `${foreign ? '$(warning)' : '$(file)'} ${f.path}`,
+      description: !found
+        ? 'new'
+        : known
+          ? 'updates your last export'
+          : 'already exists and wasn’t made by this canvas. Check to replace it; the old file goes to the trash',
+      picked: !foreign,
       write: f,
+      foreign,
     });
   }
   for (const p of previous) {
@@ -143,44 +163,69 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
     return;
   }
 
-  // 3. Write and remove.
-  let written = 0;
-  let removed = 0;
-  for (const item of chosen) {
-    if (item.write) {
-      const file = vscode.Uri.joinPath(where.root, ...item.write.path.split('/'));
-      await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(file, '..'));
-      await vscode.workspace.fs.writeFile(file, Buffer.from(item.write.content, 'utf8'));
-      log.info(`Wrote ${file.fsPath}`);
-      written++;
-    } else if (item.remove) {
-      const file = vscode.Uri.joinPath(where.root, ...item.remove.split('/'));
-      await vscode.workspace.fs.delete(file, { useTrash: true });
-      log.info(`Moved to trash: ${file.fsPath}`);
-      removed++;
-      // A skill's folder goes too, unless something else was added to it.
-      if (item.remove.startsWith('skills/')) {
-        const dir = vscode.Uri.joinPath(file, '..');
-        if (!(await vscode.workspace.fs.readDirectory(dir)).length) {
-          await vscode.workspace.fs.delete(dir, { useTrash: true });
+  // 3. Write and remove. A failure stops the export, but what was done is still recorded.
+  const written: string[] = [];
+  const removed: string[] = [];
+  let failure: string | undefined;
+  try {
+    for (const item of chosen) {
+      if (item.write) {
+        const file = vscode.Uri.joinPath(where.root, ...item.write.path.split('/'));
+        await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(file, '..'));
+        if (item.foreign) {
+          await vscode.workspace.fs.delete(file, { useTrash: true });
+          log.info(`Moved the existing file to the trash: ${file.fsPath}`);
+        }
+        await vscode.workspace.fs.writeFile(file, Buffer.from(item.write.content, 'utf8'));
+        log.info(`Wrote ${file.fsPath}`);
+        written.push(item.write.path);
+      } else if (item.remove) {
+        const file = vscode.Uri.joinPath(where.root, ...item.remove.split('/'));
+        await vscode.workspace.fs.delete(file, { useTrash: true });
+        log.info(`Moved to trash: ${file.fsPath}`);
+        removed.push(item.remove);
+        // A skill's folder goes too, unless something else was added to it.
+        if (item.remove.startsWith('skills/')) {
+          const dir = vscode.Uri.joinPath(file, '..');
+          if (!(await vscode.workspace.fs.readDirectory(dir)).length) {
+            await vscode.workspace.fs.delete(dir, { useTrash: true });
+          }
         }
       }
     }
+  } catch (e) {
+    failure = e instanceof Error ? e.message : String(e);
+    log.error(`Export stopped: ${failure}`);
   }
   const names = new Map(model.nodes.map((n) => [n.id, n.name]));
   warnings.forEach((w) => log.warn(w.nodeId ? `${names.get(w.nodeId)}: ${w.text}` : w.text));
 
-  // 4. Remember what this canvas wrote, so the next export can update or clean it up.
-  const current = parseModel(doc.getText());
-  const kept = files.map((f) => f.path).filter((p) => chosen.some((c) => c.write?.path === p) || previous.has(p));
-  current.lastExport = { target, scope: where.scope, files: kept };
-  const edit = new vscode.WorkspaceEdit();
-  edit.replace(uri, new vscode.Range(0, 0, doc.lineCount, 0), JSON.stringify(current, null, 2));
-  await vscode.workspace.applyEdit(edit);
-  await doc.save();
+  // 4. Remember what this canvas owns there, so the next export can update or clean it up.
+  // Leftovers you chose to keep stay on the list, so they're offered for removal again.
+  if (written.length || removed.length) {
+    const owned = [...new Set([...previous, ...written])].filter((p) => !removed.includes(p));
+    const current = readModel(doc.getText());
+    if (!current.error) {
+      current.model.lastExport = { target, scope: where.scope, files: owned };
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(uri, new vscode.Range(0, 0, doc.lineCount, 0), JSON.stringify(current.model, null, 2));
+      await vscode.workspace.applyEdit(edit);
+      await doc.save();
+    }
+  }
+
+  if (failure) {
+    const showLog = 'Show log';
+    void vscode.window
+      .showErrorMessage(`Export stopped: ${failure}. ${written.length} of ${chosen.filter((c) => c.write).length} files were saved.`, showLog)
+      .then((action) => action === showLog && log.show());
+    return { command, written: written.length, removed: removed.length, label: roots.label, error: failure };
+  }
 
   // 5. Say what to do next.
-  const done = removed ? `Saved ${plural(written, 'file', 'files')}, removed ${removed}.` : `Saved ${plural(written, 'file', 'files')}.`;
+  const done = removed.length
+    ? `Saved ${plural(written.length, 'file', 'files')}, removed ${removed.length}.`
+    : `Saved ${plural(written.length, 'file', 'files')}.`;
   const next = command ? ` Run ${command} in ${roots.label} to start the workflow.` : ` ${roots.label} can use them now.`;
   const copy = command ? `Copy ${command}` : undefined;
   // Not awaited: the canvas should show the result without waiting for this message to close.
@@ -192,7 +237,7 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
       vscode.commands.executeCommand('revealFileInOS', vscode.Uri.joinPath(where.root, ...first.path.split('/')));
     }
   });
-  return { command, written, removed, label: roots.label };
+  return { command, written: written.length, removed: removed.length, label: roots.label };
 }
 
 export function deactivate() {}

@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { buildExport, readBack, ROOTS } from './export';
 import type { ExportSummary } from './extension';
-import { CanvasModel, parseModel } from './model';
+import { CanvasModel, readModel } from './model';
 
 export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'skillCanvas.editor';
@@ -20,18 +20,32 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
 
     // Text last written by the webview, so we don't echo our own edits back.
     let lastFromWebview: string | undefined;
+    // Set while the file can't be read (e.g. merge conflict markers). Nothing is
+    // written back then, so a broken file is never replaced by an empty canvas.
+    let unreadable: string | undefined;
 
-    const push = () => panel.webview.postMessage({ type: 'load', model: parseModel(document.getText()) });
+    const push = () => {
+      const { model, error } = readModel(document.getText());
+      unreadable = error;
+      if (error) {
+        this.log.warn(`Can't read ${document.uri.fsPath}: ${error}`);
+      }
+      panel.webview.postMessage(error ? { type: 'unreadable', message: error } : { type: 'load', model });
+    };
 
-    const apply = async (model: CanvasModel) => {
+    /** Saves the webview's canvas into the document. False when the file is unreadable. */
+    const apply = async (model: CanvasModel): Promise<boolean> => {
+      if (unreadable) {
+        return false;
+      }
       const text = JSON.stringify(model, null, 2);
       if (text === document.getText()) {
-        return;
+        return true;
       }
       lastFromWebview = text;
       const edit = new vscode.WorkspaceEdit();
       edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), text);
-      await vscode.workspace.applyEdit(edit);
+      return vscode.workspace.applyEdit(edit);
     };
 
     const changeSub = vscode.workspace.onDidChangeTextDocument((e) => {
@@ -62,11 +76,23 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
         }
         case 'export': {
           // Save the latest canvas first, so the export sees every keystroke.
-          await apply(msg.model);
-          const summary = await vscode.commands.executeCommand<ExportSummary | undefined>('skillCanvas.export', document.uri);
-          panel.webview.postMessage({ type: 'exported', summary: summary ?? null });
+          if (!(await apply(msg.model))) {
+            panel.webview.postMessage({ type: 'exported', summary: null, error: 'The canvas could not be saved, so nothing was exported.' });
+            break;
+          }
+          try {
+            const summary = await vscode.commands.executeCommand<ExportSummary | undefined>('skillCanvas.export', document.uri);
+            panel.webview.postMessage({ type: 'exported', summary: summary ?? null, error: summary?.error });
+          } catch (e) {
+            const error = e instanceof Error ? e.message : String(e);
+            this.log.error(`Export failed: ${error}`);
+            panel.webview.postMessage({ type: 'exported', summary: null, error });
+          }
           break;
         }
+        case 'openAsText':
+          await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
+          break;
         case 'copy':
           await vscode.env.clipboard.writeText(String(msg.text));
           break;
@@ -145,6 +171,14 @@ ${ICONS}
     </div>
     <div id="issues-list" class="popover" role="dialog" aria-label="Things to fix" hidden></div>
   </header>
+  <div id="unreadable" class="blocker" role="alertdialog" aria-labelledby="unreadable-title" aria-describedby="unreadable-text" hidden>
+    <div class="empty-card">
+      <h2 id="unreadable-title">This canvas file can't be read</h2>
+      <p id="unreadable-text">It isn't valid canvas JSON, often because of merge conflict markers. Nothing is saved until it's fixed, so the file stays as it is.</p>
+      <p class="blocker-detail" id="unreadable-detail"></p>
+      <button type="button" class="primary" id="open-as-text">Open as text</button>
+    </div>
+  </div>
   <main id="workspace">
     <aside id="palette" aria-label="Add blocks">
       <h2 class="palette-title">Add blocks</h2>

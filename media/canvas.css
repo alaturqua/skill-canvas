@@ -251,6 +251,12 @@ h2, h3, p { margin: 0; }
 .starters strong { display: block; font-weight: 600; }
 .starters strong + span { font-size: 12px; color: var(--muted); }
 
+/* Unreadable file: covers the editor until the file is fixed */
+.blocker { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.blocker .empty-card > p { margin: 6px 0 0; color: var(--fg); }
+.blocker .blocker-detail { font-family: var(--mono); font-size: 12px; color: var(--muted) !important; overflow-wrap: anywhere; }
+.blocker .primary { margin-top: 16px; }
+
 /* Zoom controls */
 .zoom {
   position: absolute; right: 12px; bottom: 12px;
