@@ -63,6 +63,10 @@ This opens the sandbox workflow in `sandbox/loop-example.skillcanvas`.
 - Use the details panel to configure the selected block
 - Export from the title bar or the command palette
 
+## Screenshot
+
+![Skill Canvas workflow editor](docs/images/image.png)
+
 ## Development
 
 Useful commands:
