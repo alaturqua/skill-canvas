@@ -28,7 +28,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}",
         "--new-window",
         "${workspaceFolder}\\sandbox",
-        "${workspaceFolder}\\sandbox\\example.skillcanvas"
+        "${workspaceFolder}\\sandbox\\loop-example.skillcanvas"
       ],
       "dependsOn": "npm: compile",
       "problemMatcher": [],

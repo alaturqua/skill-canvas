@@ -248,6 +248,7 @@
     return counts;
   }
 
+  let restoringFocus = false;
   const truncCache = new Map();
   function fitText(t, text, max) {
     const key = `${text}|${max}`;
@@ -273,7 +274,9 @@
     for (const n of [...model.nodes].sort((a, b) => a.x - b.x || a.y - b.y)) drawNode(n, warn[n.id] || 0);
     if (focusedId) {
       const g = nodesG.querySelector(`[data-id="${CSS.escape(focusedId)}"]`);
+      restoringFocus = true; // a redraw keeps focus; it is not a new selection
       if (g) g.focus({ preventScroll: true });
+      restoringFocus = false;
     }
     $('empty').hidden = model.nodes.length > 0;
     updateTopbar();
@@ -471,8 +474,9 @@
     const y0 = snap(c.y - H / 2);
     let x = x0;
     let y = y0;
-    for (let i = 0; i < 64 && model.nodes.some((n) => Math.abs(n.x - x) < W + 16 && Math.abs(n.y - y) < H + 16); i++) {
-      y += H + 24;
+    // Keep clear of other blocks and of the handles and labels around them.
+    for (let i = 0; i < 64 && model.nodes.some((n) => Math.abs(n.x - x) < W + 40 && Math.abs(n.y - y) < H + 40); i++) {
+      y += H + 40;
       if (i % 4 === 3) {
         y = y0;
         x += W + 48;
@@ -584,6 +588,13 @@
 
   // ---- Pointer gestures ----
   let lastDown = {};
+  let renameOnRelease = false;
+  window.addEventListener('pointerup', () => {
+    if (renameOnRelease) {
+      renameOnRelease = false;
+      focusField('name');
+    }
+  });
   svg.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0 && ev.button !== 1) return;
     closeIssues();
@@ -600,10 +611,12 @@
       select({ type: 'node', id }, false);
     } else if (nodeEl) {
       const n = byId(nodeEl.getAttribute('data-id'));
-      // Double-click renames. Detected here because the canvas redraws between clicks.
+      // Double-click renames. Detected here because the canvas redraws between clicks;
+      // the name field is focused on release, after the browser's own focus change.
       if (lastDown.id === n.id && ev.timeStamp - lastDown.t < 400) {
         lastDown = {};
-        focusField('name');
+        renameOnRelease = true;
+        ev.preventDefault();
         return;
       }
       lastDown = { id: n.id, t: ev.timeStamp };
@@ -681,7 +694,8 @@
   svg.addEventListener('wheel', (ev) => {
     ev.preventDefault();
     if (ev.ctrlKey || ev.metaKey) {
-      zoomAt(Math.exp(-ev.deltaY * 0.01), ev.clientX, ev.clientY);
+      // Pinch sends small deltas, a wheel notch about 100: keep both gentle.
+      zoomAt(Math.exp(-clamp(ev.deltaY, -30, 30) * 0.01), ev.clientX, ev.clientY);
     } else {
       view.x -= ev.deltaX;
       view.y -= ev.deltaY;
@@ -691,7 +705,7 @@
 
   nodesG.addEventListener('focusin', (ev) => {
     const g = ev.target.closest('.node');
-    if (g && !(sel && sel.type === 'node' && sel.id === g.getAttribute('data-id'))) {
+    if (g && !restoringFocus && !(sel && sel.type === 'node' && sel.id === g.getAttribute('data-id'))) {
       select({ type: 'node', id: g.getAttribute('data-id') });
       reveal(g.getAttribute('data-id'));
     }
@@ -738,8 +752,8 @@
       } else if (inField && selNode()) {
         focusNode(sel.id);
       } else if (sel) {
+        svg.focus({ preventScroll: true }); // move focus off the block first, or it would reselect it
         select(null);
-        svg.focus({ preventScroll: true });
       }
       return;
     }

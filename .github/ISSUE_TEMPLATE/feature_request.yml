@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest an idea or improvement for Skill Canvas.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Start with the problem you're trying to solve; the solution can come later.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem or job to be done, and what gets in the way today.
+      placeholder: When I build a workflow with several agents, I want to ... but ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How you'd like it to work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways you've tried or considered.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Who does it help?
+      options:
+        - Non-technical builders
+        - Developers
+        - Both
+    validations:
+      required: true
