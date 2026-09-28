@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "compile",
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "label": "npm: compile"
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": "$tsc-watch",
+      "label": "npm: watch"
+    },
+    {
+      "label": "Dev: launch host (no debugger)",
+      "type": "shell",
+      "command": "code",
+      // Separate profile: F5 can't take over this window, your other extensions
+      // stay out, and logs land in .vscode-test/user-data/logs.
+      "args": [
+        "--user-data-dir=${workspaceFolder}\\.vscode-test\\user-data",
+        "--extensions-dir=${workspaceFolder}\\.vscode-test\\extensions",
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--new-window",
+        "${workspaceFolder}\\sandbox",
+        "${workspaceFolder}\\sandbox\\example.skillcanvas"
+      ],
+      "dependsOn": "npm: compile",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "name": "skill-canvas",
+  "displayName": "Skill Canvas",
+  "description": "Visual canvas for building agent and skill workflows.",
+  "version": "0.0.1",
+  "publisher": "alaturqua",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alaturqua/skill-canvas.git"
+  },
+  "homepage": "https://github.com/alaturqua/skill-canvas#readme",
+  "bugs": {
+    "url": "https://github.com/alaturqua/skill-canvas/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "agent",
+    "skill",
+    "workflow",
+    "canvas",
+    "claude"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "skillCanvas.new",
+        "title": "New Canvas",
+        "category": "Skill Canvas"
+      },
+      {
+        "command": "skillCanvas.export",
+        "title": "Export Agents & Skills",
+        "category": "Skill Canvas",
+        "icon": "$(export)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "skillCanvas.export",
+          "when": "activeCustomEditorId == skillCanvas.editor",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "skillCanvas",
+          "title": "Skill Canvas",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "skillCanvas": [
+        {
+          "id": "skillCanvas.start",
+          "name": "Workflows"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "skillCanvas.start",
+        "contents": "Build agent and skill workflows visually.\n[New Canvas](command:skillCanvas.new)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "skillCanvas.editor",
+        "displayName": "Skill Canvas",
+        "selector": [
+          {
+            "filenamePattern": "*.skillcanvas"
+          }
+        ],
+        "priority": "default"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.5.0"
+  }
+}
