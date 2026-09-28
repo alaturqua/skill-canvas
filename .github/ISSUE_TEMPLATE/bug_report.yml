@@ -1,0 +1,96 @@
+name: Bug report
+description: Something in Skill Canvas doesn't work as it should.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. To report a security problem, don't open an issue: follow the [security policy](https://github.com/alaturqua/skill-canvas/security/policy) instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest set of steps that shows the problem.
+      placeholder: |
+        1. Open a .skillcanvas file
+        2. Add an Agent block
+        3. Click Export
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: input
+    id: extension-version
+    attributes:
+      label: Skill Canvas version
+      description: Shown in the Extensions view.
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      description: Help → About (or Code → About Visual Studio Code on macOS).
+      placeholder: e.g. 1.95.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: dropdown
+    id: export-target
+    attributes:
+      label: Export target
+      description: Which target was selected under "Export for"?
+      options:
+        - Claude Code
+        - GitHub Copilot
+        - Not relevant
+    validations:
+      required: true
+
+  - type: textarea
+    id: canvas
+    attributes:
+      label: Canvas snippet or screenshot
+      description: A small part of the .skillcanvas file, or a screenshot of the canvas. Remove anything private first.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Copy from View → Output, then pick "Skill Canvas" in the dropdown.
+      render: shell
+    validations:
+      required: false

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "description": "Fix a reported bug, retrying up to three times until the tests pass.",
+  "nodes": [
+    { "id": "in1", "kind": "input", "name": "Bug report", "x": 0, "y": 96, "prompt": "A bug report with steps to reproduce" },
+    { "id": "lp1", "kind": "loop", "name": "Up to 3 tries", "x": 240, "y": 96, "maxIterations": 3 },
+    {
+      "id": "ag1", "kind": "agent", "name": "Fix & test", "x": 480, "y": 32,
+      "description": "Fixes a reported bug and runs the tests. Use for bug reports.",
+      "prompt": "You fix bugs.\n\n1. Reproduce the bug.\n2. Fix it with the smallest change.\n3. Run the tests.",
+      "toolsMode": "only", "tools": "Read, Edit, Bash"
+    },
+    { "id": "if1", "kind": "if", "name": "Tests pass?", "x": 720, "y": 32, "condition": "All tests pass" },
+    { "id": "out1", "kind": "output", "name": "Pull request", "x": 960, "y": 8, "prompt": "A pull request with a short summary" },
+    { "id": "out2", "kind": "output", "name": "Escalate", "x": 480, "y": 208, "prompt": "What was tried and why it failed" },
+    {
+      "id": "sk1", "kind": "skill", "name": "Write PR notes", "x": 720, "y": 208,
+      "description": "Writes a short pull request summary from the changes made.",
+      "prompt": "Summarize what changed and why in three bullet points."
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "in1", "fromPort": "out", "to": "lp1" },
+    { "id": "e2", "from": "lp1", "fromPort": "body", "to": "ag1" },
+    { "id": "e3", "from": "ag1", "fromPort": "out", "to": "if1" },
+    { "id": "e4", "from": "if1", "fromPort": "true", "to": "out1" },
+    { "id": "e5", "from": "if1", "fromPort": "false", "to": "lp1" },
+    { "id": "e6", "from": "lp1", "fromPort": "done", "to": "out2" },
+    { "id": "u1", "kind": "uses", "from": "ag1", "to": "sk1" }
+  ]
+}

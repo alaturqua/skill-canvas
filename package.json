@@ -14,7 +14,8 @@
     "url": "https://github.com/alaturqua/skill-canvas/issues"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.90.0",
+    "node": ">=22"
   },
   "categories": [
     "Visualization",
@@ -92,7 +93,9 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
-    "package": "vsce package"
+    "package": "vsce package",
+    "test": "npm run compile && cd test && node --test",
+    "lint": "tsc --noEmit -p . && node --check media/canvas.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

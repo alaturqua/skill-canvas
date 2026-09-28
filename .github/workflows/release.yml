@@ -1,0 +1,181 @@
+name: Release
+
+# Tag-driven: `npm version patch && git push --follow-tags` pushes a vX.Y.Z tag,
+# which builds, attests and publishes the same .vsix to the GitHub Release,
+# the Visual Studio Marketplace and (when OVSX_PAT is set) Open VSX.
+# Manual runs default to a dry run that only builds, tests, packages and attests.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: build, test, package and attest only (skip GitHub Release and marketplace publishing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # check out the code
+      id-token: write # Sigstore signing certificate for the provenance attestation
+      attestations: write # store the attestation
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      vsix: ${{ steps.meta.outputs.vsix }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No dependency cache in the release workflow: a poisoned cache must not be able
+      # to reach the published artifact.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Read package version
+        id: meta
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Invalid version::package.json version '${version}' is not MAJOR.MINOR.PATCH (the VS Code Marketplace does not accept pre-release suffixes)."
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "vsix=skill-canvas-${version}.vsix" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          expected="v${VERSION}"
+          if [[ "${GITHUB_REF_NAME}" != "${expected}" ]]; then
+            echo "::error title=Tag does not match package.json::Tag '${GITHUB_REF_NAME}' does not match package.json version '${VERSION}'. Expected tag '${expected}'. Create releases with 'npm version <patch|minor|major>' and 'git push --follow-tags'."
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches package.json version ${VERSION}."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Package extension
+        env:
+          VSIX: ${{ steps.meta.outputs.vsix }}
+        run: npm run package -- --out "${VSIX}"
+
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ steps.meta.outputs.vsix }}
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vsix
+          path: ${{ steps.meta.outputs.vsix }}
+          if-no-files-found: error
+
+  github-release:
+    name: github-release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release and upload the asset
+    steps:
+      - name: Download VSIX
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: vsix
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VSIX: ${{ needs.build.outputs.vsix }}
+        run: |
+          gh release create "${TAG}" "${VSIX}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --generate-notes
+
+  publish:
+    name: publish
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: release
+      url: https://marketplace.visualstudio.com/items?itemName=alaturqua.skill-canvas
+    permissions:
+      contents: read # no repository writes; publishing uses the marketplace tokens
+    steps:
+      # Publish the exact .vsix that was built and attested; never rebuild here.
+      - name: Download VSIX
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: vsix
+
+      # Only runs the publisher CLIs (vsce 4 and ovsx 1.x require Node >= 22), so it is
+      # independent of the build's .nvmrc. No checkout, so no npm cache either.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      # Each token is scoped to the one step that needs it. vsce reads VSCE_PAT and
+      # ovsx reads OVSX_PAT from the environment, so neither appears on a command line.
+      - name: Publish to Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSIX: ${{ needs.build.outputs.vsix }}
+        run: npx --yes @vscode/vsce@4.0.0 publish --packagePath "${VSIX}" --skip-duplicate
+
+      - name: Check for Open VSX token
+        id: ovsx
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [[ -n "${OVSX_PAT}" ]]; then
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice title=Open VSX skipped::OVSX_PAT secret is not set; skipping Open VSX publish."
+          fi
+
+      - name: Publish to Open VSX
+        if: steps.ovsx.outputs.enabled == 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          VSIX: ${{ needs.build.outputs.vsix }}
+        run: npx --yes ovsx@1.2.0 publish "${VSIX}" --skip-duplicate
