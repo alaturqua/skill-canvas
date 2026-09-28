@@ -11,3 +11,5 @@ sandbox/*
 .env*
 .DS_Store
 Thumbs.db
+.venv/
+.impeccable/
