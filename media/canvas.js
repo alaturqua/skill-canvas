@@ -123,9 +123,11 @@
   // ---- Saving and analysis ----
   let saveTimer = null;
   let analyzeTimer = null;
+  let unreadable = false; // the file on disk can't be read; never write over it
   function save() {
     clearTimeout(saveTimer);
     saveTimer = null;
+    if (unreadable) return;
     vscode.postMessage({ type: 'edit', model });
     if ($('status').classList.contains('done')) setStatus('');
     analyze();
@@ -173,9 +175,14 @@
   function bounds() {
     const xs = model.nodes.map((n) => n.x);
     const ys = model.nodes.map((n) => n.y);
-    // Back connections swoop below the blocks; leave room for them.
-    const swoop = nextEdges().some((e) => byId(e.to) && byId(e.from) && byId(e.to).x < byId(e.from).x + 40) ? H + 40 : 0;
-    return { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs) + W, y1: Math.max(...ys) + H + swoop };
+    const b = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs) + W, y1: Math.max(...ys) + H };
+    // Loop-back connections route around the blocks; leave room for them.
+    const loops = nextEdges().some((e) => byId(e.from) && byId(e.to) && isBackward(outPoint(byId(e.from), e.fromPort), inPoint(byId(e.to))));
+    if (loops) {
+      if (td()) b.x1 += 72;
+      else b.y1 += 72;
+    }
+    return b;
   }
   function fit() {
     const r = stageRect();
@@ -212,7 +219,15 @@
   }
 
   // ---- Canvas rendering ----
-  const portY = (k, i) => (H * (i + 1)) / (k.outs.length + 1);
+  // Connection points follow the layout direction: ports on the sides for left to
+  // right, on the top and bottom edges for top to bottom.
+  const td = () => model.direction === 'TD';
+  const outOffset = (k, i) => (td()
+    ? { x: (W * (i + 1)) / (k.outs.length + 1), y: H }
+    : { x: W, y: (H * (i + 1)) / (k.outs.length + 1) });
+  const inOffset = () => (td() ? { x: W / 2, y: 0 } : { x: 0, y: H / 2 });
+  const usesOffset = () => (td() ? { x: W, y: H / 2 } : { x: W / 2, y: H });
+  const anchorOffset = () => (td() ? { x: 0, y: H / 2 } : { x: W / 2, y: 0 });
   const diamond = (x, y, r) => `M${x},${y - r} L${x + r},${y} L${x},${y + r} L${x - r},${y} Z`;
   const pathD = (p) => `M${p[0].x},${p[0].y} C${p[1].x},${p[1].y} ${p[2].x},${p[2].y} ${p[3].x},${p[3].y}`;
   function bez(p, t) {
@@ -220,27 +235,59 @@
     const f = (a, b, c, d) => u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
     return { x: f(p[0].x, p[1].x, p[2].x, p[3].x), y: f(p[0].y, p[1].y, p[2].y, p[3].y) };
   }
+  // Position along the flow (x left to right, y top to bottom).
+  const along = (p) => (td() ? p.y : p.x);
+  const isBackward = (a, b) => along(b) - along(a) < 40;
+
   function curve(a, b, uses) {
+    const T = td();
     if (uses) {
+      // Uses links run across the flow: down from an agent, or out to its right.
+      if (T) {
+        const dx = Math.max(30, Math.abs(b.x - a.x) / 2);
+        return [a, { x: a.x + dx, y: a.y }, { x: b.x - dx, y: b.y }, b];
+      }
       const dy = Math.max(30, Math.abs(b.y - a.y) / 2);
       return [a, { x: a.x, y: a.y + dy }, { x: b.x, y: b.y - dy }, b];
     }
-    if (b.x - a.x >= 40) {
-      const dx = Math.max(40, (b.x - a.x) / 2);
-      return [a, { x: a.x + dx, y: a.y }, { x: b.x - dx, y: b.y }, b];
+    if (!isBackward(a, b)) {
+      const d = Math.max(40, (along(b) - along(a)) / 2);
+      return T ? [a, { x: a.x, y: a.y + d }, { x: b.x, y: b.y - d }, b] : [a, { x: a.x + d, y: a.y }, { x: b.x - d, y: b.y }, b];
     }
-    // Backward connection (e.g. back into a loop): swoop below both blocks.
-    const y = Math.max(a.y, b.y) + H + 40;
-    return [a, { x: a.x + 120, y }, { x: b.x - 120, y }, b];
+    return loopBack(a, b);
   }
+
+  // A connection back to an earlier block routes around every block between its
+  // two ends (below them left to right, to their right top to bottom), not through them.
+  function loopBack(a, b) {
+    const T = td();
+    const lo = Math.min(along(a), along(b)) - 8;
+    const hi = Math.max(along(a), along(b)) + 8;
+    let far = T ? Math.max(a.x, b.x) : Math.max(a.y, b.y);
+    for (const n of model.nodes) {
+      const start = T ? n.y : n.x;
+      if (start + (T ? H : W) >= lo && start <= hi) far = Math.max(far, T ? n.x + W : n.y + H);
+    }
+    // Control point that puts the curve's outermost point about 40px past those blocks.
+    const c = (far + 40 - (T ? a.x + b.x : a.y + b.y) / 8) / 0.75;
+    return T ? [a, { x: c, y: a.y + 80 }, { x: c, y: b.y - 80 }, b] : [a, { x: a.x + 80, y: c }, { x: b.x - 80, y: c }, b];
+  }
+
   const outPoint = (n, port) => {
     const k = kindOf(n);
-    const i = Math.max(0, k.outs.findIndex((o) => o.id === portOf(n, port)));
-    return { x: n.x + W, y: n.y + portY(k, i) };
+    const o = outOffset(k, Math.max(0, k.outs.findIndex((p) => p.id === portOf(n, port))));
+    return { x: n.x + o.x, y: n.y + o.y };
   };
-  const inPoint = (n) => ({ x: n.x - 7, y: n.y + H / 2 }); // arrow tip stops at the port
-  const usesFrom = (n) => ({ x: n.x + W / 2, y: n.y + H + 5 });
-  const usesTo = (n) => ({ x: n.x + W / 2, y: n.y - 5 });
+  // Arrow tips stop just short of the input port.
+  const inPoint = (n) => (td() ? { x: n.x + W / 2, y: n.y - 7 } : { x: n.x - 7, y: n.y + H / 2 });
+  const usesFrom = (n) => {
+    const o = usesOffset();
+    return td() ? { x: n.x + o.x + 5, y: n.y + o.y } : { x: n.x + o.x, y: n.y + o.y + 5 };
+  };
+  const usesTo = (n) => {
+    const o = anchorOffset();
+    return td() ? { x: n.x + o.x - 5, y: n.y + o.y } : { x: n.x + o.x, y: n.y + o.y - 5 };
+  };
 
   function warningCounts() {
     const counts = {};
@@ -270,8 +317,9 @@
     for (const e of model.edges) drawEdge(e);
     if (gesture && gesture.type === 'link') drawDraft();
     const warn = warningCounts();
-    // DOM order is the Tab order: left to right, then top to bottom.
-    for (const n of [...model.nodes].sort((a, b) => a.x - b.x || a.y - b.y)) drawNode(n, warn[n.id] || 0);
+    // DOM order is the Tab order: along the flow, then across it.
+    const tabOrder = td() ? (a, b) => a.y - b.y || a.x - b.x : (a, b) => a.x - b.x || a.y - b.y;
+    for (const n of [...model.nodes].sort(tabOrder)) drawNode(n, warn[n.id] || 0);
     if (focusedId) {
       const g = nodesG.querySelector(`[data-id="${CSS.escape(focusedId)}"]`);
       restoringFocus = true; // a redraw keeps focus; it is not a new selection
@@ -280,11 +328,13 @@
     }
     $('empty').hidden = model.nodes.length > 0;
     updateTopbar();
+    updateArrange();
   }
 
   function nodeLabel(n, warnings) {
     const k = kindOf(n);
-    const parts = [`${k.label} block: ${n.name}.`];
+    const step = analysis && analysis.steps && analysis.steps[n.id];
+    const parts = [`${step ? `Step ${step}, ` : ''}${k.label} block: ${n.name}.`];
     const outs = nextEdges().filter((e) => e.from === n.id && byId(e.to));
     if (outs.length) {
       parts.push(outs.map((e) => {
@@ -305,6 +355,7 @@
 
   function drawNode(n, warnings) {
     const k = kindOf(n);
+    const T = td();
     const selected = sel && sel.type === 'node' && sel.id === n.id;
     const g = el('g', {
       class: `node k-${n.kind}${selected ? ' selected' : ''}${linkState(n)}`,
@@ -318,17 +369,41 @@
     el('rect', { class: 'body', width: W, height: H, rx: 8 }, g);
     el('use', { href: `#i-${n.kind}`, x: 12, y: 11, width: 16, height: 16, class: 'glyph' }, g);
     el('text', { class: 'kind', x: 34, y: 23, text: k.label }, g);
+    // A branch's output is labelled (yes/no, repeat/done) until it's connected;
+    // after that the label sits on the connection instead, so it shows once.
+    const connected = (o) => nextEdges().some((e) => e.from === n.id && portOf(n, e.fromPort) === o.id);
+    const labelled = k.outs.filter((o) => o.label && !connected(o));
     const name = el('text', { class: 'name', x: 12, y: 46 }, g);
-    fitText(name, n.name || 'Untitled', W - 24 - (k.outs.length > 1 ? 44 : 0));
+    fitText(name, n.name || 'Untitled', W - 24 - (!T && labelled.length ? 44 : 0));
     el('title', { text: n.name }, g);
-    if (k.usable) el('path', { class: 'anchor', d: diamond(W / 2, 0, 4) }, g);
-    if (k.in) port(g, 'in', 0, H / 2);
+    if (k.usable) {
+      const a = anchorOffset();
+      el('path', { class: 'anchor', d: diamond(a.x, a.y, 4) }, g);
+    }
+    if (k.in) {
+      const p = inOffset();
+      port(g, 'in', p.x, p.y);
+    }
     k.outs.forEach((o, i) => {
-      const y = portY(k, i);
-      if (o.label) el('text', { class: 'port-label', x: W - 12, y: y + 4, text: o.label }, g);
-      port(g, 'out', W, y, o.id);
+      const p = outOffset(k, i);
+      if (labelled.includes(o)) {
+        el('text', T
+          ? { class: 'port-label below', x: p.x, y: p.y + 18, text: o.label }
+          : { class: 'port-label', x: p.x - 12, y: p.y + 4, text: o.label }, g);
+      }
+      port(g, 'out', p.x, p.y, o.id);
     });
-    if (k.uses) port(g, 'uses', W / 2, H);
+    if (k.uses) {
+      const p = usesOffset();
+      port(g, 'uses', p.x, p.y);
+    }
+    // Step number from the workflow file, so "go to step 3" can be found on the canvas.
+    const step = analysis && analysis.steps && analysis.steps[n.id];
+    if (step) {
+      const s = el('g', { class: 'step', 'aria-hidden': 'true' }, g);
+      el('circle', { r: 9 }, s);
+      el('text', { y: 4, text: String(step) }, s);
+    }
     if (warnings) {
       const b = el('g', { class: 'badge', transform: `translate(${W - 16},0)` }, g);
       el('circle', { r: 9 }, b);
@@ -386,6 +461,126 @@
     else if (g.mode === 'reverse') p = curve(g.pt, inPoint(n));
     else p = curve(usesFrom(n), g.pt, true);
     el('path', { class: 'line', d: pathD(p) }, el('g', { class: 'edge draft' }, edgesG));
+  }
+
+  // ---- Arrange: a layered layout, left to right or top to bottom ----
+  function sortBy(ids, key) {
+    const k = new Map(ids.map((id, i) => [id, key(id) ?? i]));
+    ids.sort((a, b) => k.get(a) - k.get(b));
+  }
+
+  function layout(dir) {
+    const next = nextEdges().filter((e) => byId(e.from) && byId(e.to));
+    const uses = model.edges.filter((e) => isUses(e) && byId(e.from) && byId(e.to));
+    const inFlow = (id) => next.some((e) => e.from === id || e.to === id);
+    const usedOnly = new Set(model.nodes.filter((n) => !inFlow(n.id) && uses.some((e) => e.to === n.id)).map((n) => n.id));
+    const loners = model.nodes.filter((n) => !inFlow(n.id) && !usedOnly.has(n.id) && !uses.some((e) => e.from === n.id)).map((n) => n.id);
+    const flow = model.nodes.filter((n) => !usedOnly.has(n.id) && !loners.includes(n.id));
+    const portIndex = (e) => Math.max(0, kindOf(byId(e.from)).outs.findIndex((o) => o.id === portOf(byId(e.from), e.fromPort)));
+    const outs = (id) => next.filter((e) => e.from === id).sort((a, b) => portIndex(a) - portIndex(b));
+
+    // 1. Walk the flow from where it starts; a connection back to a block still
+    //    being walked is a loop-back and doesn't push blocks further along.
+    const state = new Map();
+    const back = new Set();
+    const order = [];
+    const visit = (id) => {
+      state.set(id, 1);
+      order.push(id);
+      for (const e of outs(id)) {
+        const s = state.get(e.to);
+        if (s === 1) back.add(e.id);
+        else if (!s) visit(e.to);
+      }
+      state.set(id, 2);
+    };
+    const startsFirst = (a, b) => Number(a.kind !== 'input') - Number(b.kind !== 'input') || a.x - b.x || a.y - b.y;
+    flow.filter((n) => !next.some((e) => e.to === n.id)).sort(startsFirst).forEach((n) => !state.has(n.id) && visit(n.id));
+    [...flow].sort(startsFirst).forEach((n) => !state.has(n.id) && visit(n.id));
+
+    // 2. Each block's layer is its longest distance from a start.
+    const layer = new Map(order.map((id) => [id, 0]));
+    const forward = next.filter((e) => !back.has(e.id));
+    for (let pass = 0; pass < order.length; pass++) {
+      let changed = false;
+      for (const e of forward) {
+        if (layer.get(e.to) < layer.get(e.from) + 1) {
+          layer.set(e.to, layer.get(e.from) + 1);
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    }
+    const layers = [];
+    for (const id of order) (layers[layer.get(id)] = layers[layer.get(id)] || []).push(id);
+
+    // 3. Order blocks within each layer by where their neighbours are, to untangle crossings.
+    const pos = new Map();
+    const index = () => layers.forEach((l) => l.forEach((id, i) => pos.set(id, i)));
+    const avg = (ids) => (ids.length ? ids.reduce((s, id) => s + pos.get(id), 0) / ids.length : null);
+    index();
+    for (let pass = 0; pass < 4; pass++) {
+      for (let l = 1; l < layers.length; l++) sortBy(layers[l], (id) => avg(forward.filter((e) => e.to === id).map((e) => e.from)));
+      index();
+      for (let l = layers.length - 2; l >= 0; l--) sortBy(layers[l], (id) => avg(forward.filter((e) => e.from === id).map((e) => e.to)));
+      index();
+    }
+
+    // 4. Skills and tools an agent only uses sit right beside it.
+    const placed = new Set();
+    for (const l of layers) {
+      for (let i = 0; i < l.length; i++) {
+        const mine = uses.filter((e) => e.from === l[i] && usedOnly.has(e.to) && !placed.has(e.to)).map((e) => e.to);
+        mine.forEach((id) => placed.add(id));
+        l.splice(i + 1, 0, ...mine);
+        i += mine.length;
+      }
+    }
+    // 5. Blocks that aren't connected at all go in one last layer.
+    const extra = [...loners, ...[...usedOnly].filter((id) => !placed.has(id))];
+    if (extra.length) layers.push(extra);
+
+    // 6. Layers along the flow, blocks across it, each layer centred.
+    const T = dir === 'TD';
+    const stepAlong = T ? H + 88 : W + 96;
+    const stepAcross = T ? W + 40 : H + 56;
+    const widest = Math.max(...layers.map((l) => l.length));
+    const result = new Map();
+    layers.forEach((l, li) => {
+      const offset = ((widest - l.length) * stepAcross) / 2;
+      l.forEach((id, i) => {
+        const a = li * stepAlong;
+        const c = offset + i * stepAcross;
+        result.set(id, T ? { x: snap(c), y: snap(a) } : { x: snap(a), y: snap(c) });
+      });
+    });
+    return result;
+  }
+
+  function arrange(dir) {
+    if (!model.nodes.length) return;
+    model.direction = dir;
+    const pos = layout(dir);
+    for (const n of model.nodes) {
+      const p = pos.get(n.id);
+      if (p) {
+        n.x = p.x;
+        n.y = p.y;
+      }
+    }
+    render();
+    fit();
+    save();
+    const how = dir === 'TD' ? 'top to bottom' : 'left to right';
+    setStatus(`Arranged ${how}. Undo with ${UNDO}.`, { clearAfter: 6000 });
+    say(`Arranged ${how}.`);
+  }
+
+  function updateArrange() {
+    for (const b of document.querySelectorAll('[data-arrange]')) {
+      b.setAttribute('aria-pressed', String((model.direction || 'LR') === b.dataset.arrange));
+      b.disabled = !model.nodes.length;
+    }
   }
 
   // ---- Linking rules ----
@@ -728,6 +923,7 @@
   document.querySelector('.zoom').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.arrange) return arrange(b.dataset.arrange);
     const z = b.dataset.zoom;
     if (z === 'in') zoomAt(1.2);
     else if (z === 'out') zoomAt(1 / 1.2);
@@ -884,7 +1080,8 @@
     }
     const count = analysis ? analysis.warnings.length : 0;
     const issues = $('issues');
-    const label = !model.nodes.length ? '' : count ? `${count} to fix` : 'Ready';
+    const exportable = !!analysis && analysis.files.length > 0;
+    const label = !model.nodes.length ? '' : count ? `${count} to fix` : exportable ? 'Ready' : '';
     if (issues.dataset.label !== label) {
       issues.dataset.label = label;
       issues.replaceChildren(...(label ? [icon(count ? 'warning' : 'check', `icon ${count ? 'warn' : 'ok'}`), h('span', { text: label })] : []));
@@ -892,7 +1089,9 @@
     issues.hidden = !label;
     issues.disabled = !count;
     issues.setAttribute('aria-label', count ? `${plural(count, 'thing', 'things')} to fix. Show the list.` : 'Ready to export');
-    $('export').disabled = !model.nodes.length;
+    const exportBtn = $('export');
+    exportBtn.disabled = !model.nodes.length || (!!analysis && !exportable);
+    exportBtn.title = exportBtn.disabled ? 'Add an Agent or Skill block to export' : 'Save the agents and skills as files';
   }
 
   // Things to fix.
@@ -1453,11 +1652,95 @@
     fillPreview();
   }
 
+  // Blocks the editor while the file can't be read (message), or lifts the block (null).
+  function showUnreadable(message) {
+    unreadable = message !== null;
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    $('unreadable').hidden = !unreadable;
+    $('unreadable-detail').textContent = unreadable ? `Details: ${message}` : '';
+    $('topbar').inert = unreadable;
+    $('workspace').inert = unreadable;
+    if (unreadable) {
+      $('open-as-text').focus();
+      say("This canvas file can't be read. Nothing will be saved until it's fixed.");
+    }
+  }
+  $('open-as-text').addEventListener('click', () => vscode.postMessage({ type: 'openAsText' }));
+
+  // ---- Import ----
+  const startImport = () => {
+    flush();
+    setStatus('Choose agents and skills to import…', { clearAfter: 8000 });
+    vscode.postMessage({ type: 'import' });
+  };
+  $('import').addEventListener('click', startImport);
+  for (const b of document.querySelectorAll('[data-import]')) b.addEventListener('click', startImport);
+
+  // Places imported blocks after what's already there: agents with the skills they use
+  // beside them (below left to right, to the right top to bottom).
+  function placeImported(msg) {
+    const wasEmpty = !model.nodes.length;
+    const T = td();
+    const b = wasEmpty ? null : bounds();
+    const gapAlong = T ? H + 56 : W + 40;
+    const gapAcross = T ? W + 40 : H + 72;
+    let along = 0;
+    const origin = wasEmpty ? { x: 0, y: 0 } : T ? { x: b.x1 + 120, y: b.y0 } : { x: b.x0, y: b.y1 + 120 };
+    const put = (n, a, c) => {
+      n.x = snap(origin.x + (T ? c : a));
+      n.y = snap(origin.y + (T ? a : c));
+    };
+    const placed = new Set();
+    for (const a of msg.nodes.filter((n) => n.kind === 'agent')) {
+      put(a, along, 0);
+      const linked = msg.edges.filter((e) => e.from === a.id).map((e) => msg.nodes.find((n) => n.id === e.to)).filter((n) => n && !placed.has(n.id));
+      linked.forEach((s, i) => {
+        put(s, along + i * gapAlong, gapAcross);
+        placed.add(s.id);
+      });
+      along += Math.max(1, linked.length) * gapAlong;
+    }
+    const agents = msg.nodes.some((n) => n.kind === 'agent');
+    for (const s of msg.nodes.filter((n) => n.kind === 'skill' && !placed.has(n.id))) {
+      put(s, along, agents ? gapAcross : 0);
+      along += gapAlong;
+    }
+    model.nodes.push(...msg.nodes);
+    model.edges.push(...msg.edges);
+    // An empty canvas takes the target of what was imported, if it all came from one tool.
+    const targets = [...new Set(msg.targets)];
+    if (wasEmpty && targets.length === 1) model.target = targets[0];
+    // Files an export would write back to exactly become this canvas's, so the next
+    // export updates them instead of treating them as someone else's.
+    const t = target();
+    const mine = msg.owned.filter((o) => o.target === t);
+    if (mine.length) {
+      const last = model.lastExport && model.lastExport.target === t ? model.lastExport : null;
+      const scope = last ? last.scope : mine[0].scope;
+      const add = mine.filter((o) => o.scope === scope).map((o) => o.path);
+      model.lastExport = { target: t, scope, files: [...new Set([...(last ? last.files : []), ...add])] };
+    }
+    sel = null;
+    save();
+    render();
+    fit();
+    renderPanel();
+    const agentCount = msg.nodes.filter((n) => n.kind === 'agent').length;
+    const skillCount = msg.nodes.length - agentCount;
+    const what = [agentCount && plural(agentCount, 'agent', 'agents'), skillCount && plural(skillCount, 'skill', 'skills')].filter(Boolean).join(' and ');
+    setStatus(`Imported ${what}. Connect them into a workflow, or press Arrange to tidy up.`, { done: true });
+    say(`Imported ${what}.`);
+  }
+
   // ---- Messages from the extension ----
   let lastCommand = null;
   window.addEventListener('message', (evt) => {
     const msg = evt.data;
-    if (msg.type === 'load') {
+    if (msg.type === 'unreadable') {
+      showUnreadable(msg.message);
+    } else if (msg.type === 'load') {
+      if (unreadable) showUnreadable(null);
       model = msg.model;
       if (sel && ((sel.type === 'node' && !byId(sel.id)) || (sel.type === 'edge' && !model.edges.some((e) => e.id === sel.id)))) sel = null;
       render();
@@ -1476,6 +1759,8 @@
       else showAnalysis();
       lastCommand = msg.command;
       if (msg.nodeId !== (selNode() ? sel.id : null)) analyze();
+    } else if (msg.type === 'imported') {
+      placeImported(msg);
     } else if (msg.type === 'patch') {
       // Fields read back from an edited file.
       const n = selNode();
@@ -1490,6 +1775,12 @@
     } else if (msg.type === 'exported') {
       $('export').disabled = !model.nodes.length;
       const s = msg.summary;
+      if (msg.error) {
+        const saved = s && s.written ? ` ${plural(s.written, 'file was', 'files were')} saved before it stopped.` : '';
+        setStatus(`Export stopped: ${msg.error}.${saved}`);
+        say(`Export stopped. ${msg.error}`);
+        return;
+      }
       if (!s) return setStatus('');
       const next = s.command ? `Run ${s.command} in ${s.label} chat.` : `${s.label} can use them now.`;
       setStatus(`Saved ${plural(s.written, 'file', 'files')}${s.removed ? `, removed ${s.removed}` : ''}. ${next}`, { done: true });

@@ -63,6 +63,8 @@ export interface CanvasModel {
   argumentHint?: string;
   /** Export format; defaults to Claude Code. */
   target?: Target;
+  /** How the flow is laid out and connected: left to right (default) or top to bottom. */
+  direction?: 'LR' | 'TD';
   /** What the last export wrote, so the next one can update or remove those files. */
   lastExport?: { target: Target; scope: Scope; files: string[] };
   nodes: CanvasNode[];
@@ -73,28 +75,46 @@ export const emptyModel = (): CanvasModel => ({ version: 1, nodes: [], edges: []
 
 export const isUses = (e: CanvasEdge) => e.kind === 'uses';
 
-export function parseModel(text: string): CanvasModel {
+/**
+ * Reads a canvas file. An empty file is a new, empty canvas; anything that isn't a
+ * canvas object comes back with an `error`, so callers can refuse to overwrite it.
+ */
+export function readModel(text: string): { model: CanvasModel; error?: string } {
   if (!text.trim()) {
-    return emptyModel();
+    return { model: emptyModel() };
   }
+  let raw: unknown;
   try {
-    const raw = JSON.parse(text);
-    const last = raw.lastExport;
-    return {
-      version: 1,
-      name: typeof raw.name === 'string' ? raw.name : undefined,
-      description: typeof raw.description === 'string' ? raw.description : undefined,
-      argumentHint: typeof raw.argumentHint === 'string' ? raw.argumentHint : undefined,
-      target: raw.target === 'copilot' ? 'copilot' : raw.target === 'claude' ? 'claude' : undefined,
-      lastExport:
-        last && (last.target === 'claude' || last.target === 'copilot') &&
-        (last.scope === 'project' || last.scope === 'user') && Array.isArray(last.files)
-          ? { target: last.target, scope: last.scope, files: last.files.filter((f: unknown) => typeof f === 'string') }
-          : undefined,
-      nodes: Array.isArray(raw.nodes) ? raw.nodes : [],
-      edges: Array.isArray(raw.edges) ? raw.edges : [],
-    };
-  } catch {
-    return emptyModel();
+    raw = JSON.parse(text);
+  } catch (e) {
+    return { model: emptyModel(), error: e instanceof Error ? e.message : String(e) };
   }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { model: emptyModel(), error: 'The file does not contain a canvas.' };
+  }
+  return { model: fromRaw(raw as Record<string, any>) };
+}
+
+/** Reads a canvas file, falling back to an empty canvas when it can't be read. */
+export function parseModel(text: string): CanvasModel {
+  return readModel(text).model;
+}
+
+function fromRaw(raw: Record<string, any>): CanvasModel {
+  const last = raw.lastExport;
+  return {
+    version: 1,
+    name: typeof raw.name === 'string' ? raw.name : undefined,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
+    argumentHint: typeof raw.argumentHint === 'string' ? raw.argumentHint : undefined,
+    target: raw.target === 'copilot' ? 'copilot' : raw.target === 'claude' ? 'claude' : undefined,
+    direction: raw.direction === 'TD' ? 'TD' : raw.direction === 'LR' ? 'LR' : undefined,
+    lastExport:
+      last && (last.target === 'claude' || last.target === 'copilot') &&
+      (last.scope === 'project' || last.scope === 'user') && Array.isArray(last.files)
+        ? { target: last.target, scope: last.scope, files: last.files.filter((f: unknown) => typeof f === 'string') }
+        : undefined,
+    nodes: Array.isArray(raw.nodes) ? raw.nodes : [],
+    edges: Array.isArray(raw.edges) ? raw.edges : [],
+  };
 }

@@ -165,8 +165,9 @@ jobs:
         id: ovsx
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          PUBLISH_OPEN_VSX: ${{ vars.PUBLISH_OPEN_VSX }}
         run: |
-          if [[ -n "${OVSX_PAT}" && "${{ vars.PUBLISH_OPEN_VSX }}" == "true" ]]; then
+          if [[ -n "${OVSX_PAT}" && "${PUBLISH_OPEN_VSX}" == "true" ]]; then
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"

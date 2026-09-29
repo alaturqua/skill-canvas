@@ -11,12 +11,15 @@ Skill Canvas lets you:
 - connect the blocks to model step order and agent/tool relationships
 - fill in details in a side panel without writing Markdown or YAML by hand
 - export the result to native agent and skill files for Claude Code or GitHub Copilot
+- import the agents and skills you already have, edit them on the canvas, and export them back
 
 The project is designed to keep the editing experience inside VS Code while producing standard files that work outside the extension.
 
 ## Features
 
-- Visual graph editor for workflow design
+- Visual graph editor for workflow design, with step numbers on the blocks
+- Arrange the workflow left to right or top to bottom in one click
+- Import existing agents and skills from `.claude`, `.github`, `~/.claude` and `~/.copilot`
 - Canvas interactions for pan, zoom, selection, and keyboard navigation
 - Block types for workflow composition and control flow
 - Plain-language forms for workflow details
@@ -61,6 +64,8 @@ This opens the sandbox workflow in `sandbox/loop-example.skillcanvas`.
 - Select a workspace folder before creating a new canvas
 - Add and connect blocks on the canvas
 - Use the details panel to configure the selected block
+- Import existing agents and skills with **Import agents & skills** in the palette, the title bar, or `Skill Canvas: Import Agents & Skills`
+- Tidy up with the **Arrange** buttons in the canvas toolbar (left to right, or top to bottom)
 - Export from the title bar or the command palette
 
 ## Screenshot
