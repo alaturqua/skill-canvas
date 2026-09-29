@@ -161,16 +161,20 @@ jobs:
           VSIX: ${{ needs.build.outputs.vsix }}
         run: npx --yes @vscode/vsce@4.0.0 publish --packagePath "${VSIX}" --skip-duplicate
 
-      - name: Check for Open VSX token
+      - name: Check whether Open VSX publishing is enabled
         id: ovsx
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          if [[ -n "${OVSX_PAT}" ]]; then
+          if [[ -n "${OVSX_PAT}" && "${{ vars.PUBLISH_OPEN_VSX }}" == "true" ]]; then
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice title=Open VSX skipped::OVSX_PAT secret is not set; skipping Open VSX publish."
+            if [[ -z "${OVSX_PAT}" ]]; then
+              echo "::notice title=Open VSX skipped::OVSX_PAT secret is not set; skipping Open VSX publish."
+            else
+              echo "::notice title=Open VSX skipped::PUBLISH_OPEN_VSX is not set to true; skipping Open VSX publish."
+            fi
           fi
 
       - name: Publish to Open VSX
