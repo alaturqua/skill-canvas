@@ -43,14 +43,35 @@
         "title": "Export Agents & Skills",
         "category": "Skill Canvas",
         "icon": "$(export)"
+      },
+      {
+        "command": "skillCanvas.import",
+        "title": "Import Agents & Skills",
+        "category": "Skill Canvas",
+        "icon": "$(cloud-download)"
       }
     ],
     "menus": {
       "editor/title": [
         {
+          "command": "skillCanvas.import",
+          "when": "activeCustomEditorId == skillCanvas.editor",
+          "group": "navigation@1"
+        },
+        {
           "command": "skillCanvas.export",
           "when": "activeCustomEditorId == skillCanvas.editor",
-          "group": "navigation"
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "skillCanvas.import",
+          "when": "activeCustomEditorId == skillCanvas.editor"
+        },
+        {
+          "command": "skillCanvas.export",
+          "when": "activeCustomEditorId == skillCanvas.editor"
         }
       ]
     },

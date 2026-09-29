@@ -180,6 +180,16 @@ h2, h3, p { margin: 0; }
 .block .glyph { margin-top: 2px; }
 .block .title { font-weight: 600; }
 .block .desc { grid-column: 2; font-size: 12px; color: var(--muted); line-height: 1.35; text-wrap: pretty; }
+.palette-import {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; margin-top: 12px; padding: 6px 8px; text-align: left; font-size: 12px;
+  background: transparent; color: var(--fg);
+  border: 1px dashed var(--vscode-input-border, var(--border)); border-radius: var(--radius);
+}
+.palette-import:hover { background: var(--hover); border-style: solid; }
+.empty-import { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.link-button { padding: 0; background: none; border: 0; font: inherit; color: var(--vscode-textLink-foreground); text-decoration: underline; text-underline-offset: 2px; }
+.link-button:hover { color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground)); }
 .shortcuts { margin-top: auto; padding: 16px 8px 0; font-size: 12px; color: var(--muted); }
 .shortcuts summary { cursor: pointer; color: var(--muted); }
 .shortcuts summary:hover { color: var(--fg); }
@@ -210,6 +220,9 @@ h2, h3, p { margin: 0; }
 .port-wrap:hover .port, .port-wrap.active .port { fill: var(--kind); }
 .port-hit { fill: transparent; cursor: crosshair; }
 .port-label { fill: var(--muted); font-size: 11px; text-anchor: end; }
+.port-label.below { text-anchor: middle; }
+.step circle { fill: var(--bg); stroke: var(--muted); stroke-width: 1.25; }
+.step text { fill: var(--fg); font-size: 11px; font-weight: 600; text-anchor: middle; }
 .anchor { fill: var(--bg); stroke: var(--kind); stroke-width: 1.5; }
 .badge circle { fill: var(--vscode-inputValidation-warningBackground, var(--widget)); stroke: var(--vscode-inputValidation-warningBorder, var(--warn)); stroke-width: 1.5; }
 .badge text { fill: var(--fg); font-size: 11px; font-weight: 700; text-anchor: middle; }
@@ -269,6 +282,9 @@ h2, h3, p { margin: 0; }
 .zoom button { display: inline-grid; place-items: center; height: 28px; min-width: 28px; padding: 0 6px; background: transparent; border: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 .zoom button:hover { background: var(--hover); }
 #zoom-level { min-width: 48px; }
+.zoom-sep { width: 1px; align-self: stretch; margin: 5px 2px; background: var(--border); }
+.zoom button[aria-pressed="true"] { background: var(--vscode-toolbar-activeBackground, var(--hover)); }
+.zoom button:disabled { opacity: 0.5; cursor: default; }
 
 /* ---- Details panel ---- */
 #props {
@@ -404,6 +420,8 @@ body.vscode-high-contrast-light :is(.block, .starters button, .issue):is(:hover,
   .block { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; }
   .block .title, .block .desc { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .block .glyph { margin: 0; }
+  .palette-import { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .palette-import span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (max-width: 760px) {
   #props { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; border-left-color: var(--hc); box-shadow: -8px 0 24px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.35)); max-width: calc(100% - 52px); }

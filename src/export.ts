@@ -25,6 +25,8 @@ export interface ExportResult {
   command?: string;
   /** Exported name per agent/skill block. */
   names: Record<string, string>;
+  /** Step number per block in the workflow, when there is one. */
+  steps: Record<string, number>;
 }
 
 /** Root folders per target: in the project, and under the user's home directory. */
@@ -73,7 +75,7 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
   const warnings: ExportWarning[] = [];
   const names: Record<string, string> = {};
   if (!model.nodes.length) {
-    return { files, warnings, names };
+    return { files, warnings, names, steps: {} };
   }
 
   const byId = new Map(model.nodes.map((n) => [n.id, n]));
@@ -200,7 +202,8 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     files.push({ path: `skills/${wfSlug}/SKILL.md`, content: head + body.text, kind: 'workflow', steps });
     command = `/${wfSlug}`;
   }
-  return { files, warnings, command, names };
+  const stepNumbers = flow.order.length >= 2 ? Object.fromEntries(flow.order.map((n, i) => [n.id, i + 1])) : {};
+  return { files, warnings, command, names, steps: stepNumbers };
 }
 
 /** Splits a generated file into its frontmatter fields and body. */
@@ -358,7 +361,11 @@ function workflowBody(
     refs.length > 1 ? `${refs.slice(0, -1).join(', ')} and ${refs[refs.length - 1]}` : refs[0];
   const goTo = (refs: string[]) => (refs.length ? `go to ${join(refs)}` : 'stop');
   const then = (n: CanvasNode) => `Then ${goTo(targets(n))}.`;
-  const note = (s: string | undefined, prefix = '') => (oneLine(s) ? ` ${prefix}${oneLine(s)}` : '');
+  // A note becomes its own sentence, ending in a full stop unless it already has punctuation.
+  const note = (s: string | undefined, prefix = '') => {
+    const t = oneLine(s);
+    return t ? ` ${prefix}${t}${/[.?!]$/.test(t) ? '' : '.'}` : '';
+  };
   const agentWord = target === 'claude' ? 'subagent' : 'custom agent';
   // Bold step title, ending in a period unless the name already ends in punctuation.
   const title = (prefix: string, name: string) => `**${prefix}${name}${/[.?!:]$/.test(name) ? '' : '.'}**`;

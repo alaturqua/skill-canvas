@@ -20,4 +20,5 @@ CODE_OF_CONDUCT.md
 package-lock.json
 *.log
 .env*
+.venv/**
 !media/**

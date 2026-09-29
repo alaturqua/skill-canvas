@@ -63,6 +63,8 @@ export interface CanvasModel {
   argumentHint?: string;
   /** Export format; defaults to Claude Code. */
   target?: Target;
+  /** How the flow is laid out and connected: left to right (default) or top to bottom. */
+  direction?: 'LR' | 'TD';
   /** What the last export wrote, so the next one can update or remove those files. */
   lastExport?: { target: Target; scope: Scope; files: string[] };
   nodes: CanvasNode[];
@@ -106,6 +108,7 @@ function fromRaw(raw: Record<string, any>): CanvasModel {
     description: typeof raw.description === 'string' ? raw.description : undefined,
     argumentHint: typeof raw.argumentHint === 'string' ? raw.argumentHint : undefined,
     target: raw.target === 'copilot' ? 'copilot' : raw.target === 'claude' ? 'claude' : undefined,
+    direction: raw.direction === 'TD' ? 'TD' : raw.direction === 'LR' ? 'LR' : undefined,
     lastExport:
       last && (last.target === 'claude' || last.target === 'copilot') &&
       (last.scope === 'project' || last.scope === 'user') && Array.isArray(last.files)

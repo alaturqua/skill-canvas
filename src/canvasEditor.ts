@@ -2,10 +2,14 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { buildExport, readBack, ROOTS } from './export';
 import type { ExportSummary } from './extension';
+import { pickImports } from './importFlow';
 import { CanvasModel, readModel } from './model';
 
 export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'skillCanvas.editor';
+
+  /** Open canvases by document URI, so commands can reach the right one. */
+  private readonly open = new Map<string, { panel: vscode.WebviewPanel; document: vscode.TextDocument }>();
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -13,6 +17,7 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
   ) {}
 
   resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): void {
+    this.open.set(document.uri.toString(), { panel, document });
     this.log.info(`Opening ${document.uri.fsPath}`);
     const mediaRoot = vscode.Uri.joinPath(this.context.extensionUri, 'media');
     panel.webview.options = { enableScripts: true, localResourceRoots: [mediaRoot] };
@@ -93,6 +98,9 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
         case 'openAsText':
           await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
           break;
+        case 'import':
+          await this.importInto(document.uri);
+          break;
         case 'copy':
           await vscode.env.clipboard.writeText(String(msg.text));
           break;
@@ -103,9 +111,31 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     panel.onDidDispose(() => {
+      this.open.delete(document.uri.toString());
       changeSub.dispose();
       msgSub.dispose();
     });
+  }
+
+  /** Picks existing agents and skills and hands them to the canvas to place. */
+  async importInto(uri: vscode.Uri | undefined) {
+    const entry = uri && this.open.get(uri.toString());
+    if (!entry) {
+      vscode.window.showErrorMessage('Open a Skill Canvas first, then import into it.');
+      return;
+    }
+    const { model, error } = readModel(entry.document.getText());
+    if (error) {
+      vscode.window.showErrorMessage("This canvas file can't be read, so nothing can be imported into it. Fix it first.");
+      return;
+    }
+    const folder = vscode.workspace.getWorkspaceFolder(entry.document.uri) ?? vscode.workspace.workspaceFolders?.[0];
+    const result = await pickImports(folder, model);
+    if (result) {
+      this.log.info(`Importing ${result.nodes.length} block(s) into ${entry.document.uri.fsPath}`);
+      entry.panel.reveal();
+      entry.panel.webview.postMessage({ type: 'imported', ...result });
+    }
   }
 
   /** Warnings, file list and the preview for the selected block (or the workflow). */
@@ -125,6 +155,7 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
       command: result.command ?? null,
       label: ROOTS[target].label,
       names: result.names,
+      steps: result.steps,
       warnings: result.warnings,
       files: result.files.map((f) => ({ path: `${root}/${f.path}`, kind: f.kind, nodeId: f.nodeId ?? null })),
       preview: file
@@ -183,6 +214,7 @@ ${ICONS}
     <aside id="palette" aria-label="Add blocks">
       <h2 class="palette-title">Add blocks</h2>
       <div id="palette-items"></div>
+      <button id="import" type="button" class="palette-import" title="Bring existing agents and skills from .claude, .github, ~/.claude or ~/.copilot onto the canvas"><svg class="icon" aria-hidden="true"><use href="#i-import"/></svg><span>Import agents &amp; skills</span></button>
       <details class="shortcuts">
         <summary>Keyboard shortcuts</summary>
         <dl>
@@ -215,6 +247,7 @@ ${ICONS}
             <button type="button" data-starter="skill"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Agent with a skill</strong><span>An agent that follows a reusable playbook</span></span></button>
             <button type="button" data-starter="retry"><svg class="glyph k-loop" aria-hidden="true"><use href="#i-loop"/></svg><span><strong>Try until it works</strong><span>Do the work, check it, and retry up to 3 times</span></span></button>
           </div>
+          <p class="empty-import">Already have agents or skills? <button type="button" class="link-button" data-import>Import them</button></p>
         </div>
       </div>
       <div class="zoom" role="toolbar" aria-label="Zoom">
@@ -222,6 +255,9 @@ ${ICONS}
         <button type="button" data-zoom="reset" id="zoom-level" aria-label="Reset zoom to 100%" title="Reset zoom">100%</button>
         <button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in (+)"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
         <button type="button" data-zoom="fit" aria-label="Fit everything on screen" title="Fit everything (0)"><svg class="icon" aria-hidden="true"><use href="#i-fit"/></svg></button>
+        <span class="zoom-sep" aria-hidden="true"></span>
+        <button type="button" data-arrange="LR" aria-pressed="true" aria-label="Arrange left to right" title="Arrange left to right"><svg class="icon" aria-hidden="true"><use href="#i-arrange-lr"/></svg></button>
+        <button type="button" data-arrange="TD" aria-pressed="false" aria-label="Arrange top to bottom" title="Arrange top to bottom"><svg class="icon" aria-hidden="true"><use href="#i-arrange-td"/></svg></button>
       </div>
     </section>
     <aside id="props" aria-label="Details"></aside>
@@ -254,6 +290,9 @@ const ICONS = `  <svg class="icon-defs" aria-hidden="true" focusable="false">
       <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></symbol>
       <symbol id="i-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 9h6.6l.7-9"/></symbol>
       <symbol id="i-close" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></symbol>
+      <symbol id="i-import" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5H4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6z"/><path d="M9 2.5V6h3.5M8 8v4M6.2 10.2 8 12l1.8-1.8"/></symbol>
+      <symbol id="i-arrange-lr" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="6" width="4" height="4" rx="1"/><rect x="10.5" y="6" width="4" height="4" rx="1"/><path d="M5.5 8h4.5M8.5 6.5 10 8l-1.5 1.5"/></symbol>
+      <symbol id="i-arrange-td" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="1.5" width="4" height="4" rx="1"/><rect x="6" y="10.5" width="4" height="4" rx="1"/><path d="M8 5.5V10M6.5 8.5 8 10l1.5-1.5"/></symbol>
       <symbol id="i-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></symbol>
     </defs>
   </svg>`;

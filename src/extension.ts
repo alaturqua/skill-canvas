@@ -8,11 +8,12 @@ import { emptyModel, readModel, Scope } from './model';
 export function activate(context: vscode.ExtensionContext) {
   const log = vscode.window.createOutputChannel('Skill Canvas', { log: true });
   log.info('Activated');
+  const provider = new CanvasEditorProvider(context, log);
   context.subscriptions.push(
     log,
     vscode.window.registerCustomEditorProvider(
       CanvasEditorProvider.viewType,
-      new CanvasEditorProvider(context, log),
+      provider,
       { webviewOptions: { retainContextWhenHidden: true } }
     ),
     vscode.commands.registerCommand('skillCanvas.new', async () => {
@@ -40,7 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
       await vscode.commands.executeCommand('vscode.openWith', uri, CanvasEditorProvider.viewType);
     }),
-    vscode.commands.registerCommand('skillCanvas.export', (uri?: vscode.Uri) => exportCanvas(log, uri))
+    vscode.commands.registerCommand('skillCanvas.export', (uri?: vscode.Uri) => exportCanvas(log, uri)),
+    vscode.commands.registerCommand('skillCanvas.import', (uri?: vscode.Uri) => provider.importInto(uri ?? activeCanvasUri()))
   );
 }
 
