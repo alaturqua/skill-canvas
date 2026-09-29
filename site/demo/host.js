@@ -6,6 +6,9 @@
   const X = window.SkillCanvasExport;
   const I = window.SkillCanvasImporter;
   const NAME = 'loop-example';
+  // Versioned so a view saved by an earlier demo (which opened with the details panel
+  // closed) doesn't carry over.
+  const STATE_KEY = 'skill-canvas-demo-2';
   let model = JSON.parse(JSON.stringify(window.DEMO_MODEL));
   let selected = null;
 
@@ -109,18 +112,16 @@
           break;
       }
     },
-    // A first visit opens with the details panel closed, so the whole flow fits the
-    // board at a readable size; the panel button brings it back.
     getState() {
       try {
-        return JSON.parse(sessionStorage.getItem('skill-canvas-demo') || 'null') || { props: false };
+        return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null');
       } catch {
-        return { props: false };
+        return null;
       }
     },
     setState(state) {
       try {
-        sessionStorage.setItem('skill-canvas-demo', JSON.stringify(state));
+        sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
       } catch {
         /* storage unavailable: the view just won't be remembered */
       }
