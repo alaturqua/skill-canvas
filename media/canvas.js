@@ -44,8 +44,8 @@
   const saved = vscode.getState() || {};
   let view = saved.view || { x: 40, y: 40, k: 1 };
   let needsFit = !saved.view;
-  const ui = { props: saved.props !== false, preview: saved.preview === 'edit' ? 'edit' : 'preview', advanced: saved.advanced || {} };
-  const persist = () => vscode.setState({ view, props: ui.props, preview: ui.preview, advanced: ui.advanced });
+  const ui = { props: saved.props !== false, starters: saved.starters !== false, preview: saved.preview === 'edit' ? 'edit' : 'preview', advanced: saved.advanced || {} };
+  const persist = () => vscode.setState({ view, props: ui.props, starters: ui.starters, preview: ui.preview, advanced: ui.advanced });
 
   const $ = (id) => document.getElementById(id);
   const svg = $('canvas');
@@ -326,7 +326,12 @@
       if (g) g.focus({ preventScroll: true });
       restoringFocus = false;
     }
-    $('empty').hidden = model.nodes.length > 0;
+    // Closing the starters lasts until the canvas has blocks; empty it again and they come back.
+    if (model.nodes.length && !ui.starters) {
+      ui.starters = true;
+      persist();
+    }
+    $('empty').hidden = model.nodes.length > 0 || !ui.starters;
     updateTopbar();
     updateArrange();
   }
@@ -781,6 +786,15 @@
   }
   for (const b of document.querySelectorAll('[data-starter]')) b.addEventListener('click', () => startWith(b.dataset.starter));
 
+  function closeStarters() {
+    ui.starters = false;
+    persist();
+    $('empty').hidden = true;
+    svg.focus({ preventScroll: true });
+    say('Starters closed. Drag blocks in from the left.');
+  }
+  $('empty-close').addEventListener('click', closeStarters);
+
   // ---- Pointer gestures ----
   let lastDown = {};
   let renameOnRelease = false;
@@ -950,6 +964,8 @@
       } else if (sel) {
         svg.focus({ preventScroll: true }); // move focus off the block first, or it would reselect it
         select(null);
+      } else if (!inField && !$('empty').hidden) {
+        closeStarters();
       }
       return;
     }

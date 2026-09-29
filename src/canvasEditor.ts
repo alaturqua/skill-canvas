@@ -239,8 +239,9 @@ ${ICONS}
         <g id="viewport"><g id="edges"></g><g id="nodes"></g></g>
       </svg>
       <div id="empty" class="empty" hidden>
-        <div class="empty-card">
-          <h2>Start a workflow</h2>
+        <div class="empty-card" role="region" aria-labelledby="empty-title">
+          <button type="button" id="empty-close" class="icon-button empty-close" aria-label="Close starters" title="Close (Escape)"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+          <h2 id="empty-title">Start a workflow</h2>
           <p>Pick a starter, or drag blocks in from the left.</p>
           <div class="starters">
             <button type="button" data-starter="agent"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Single agent</strong><span>An agent that handles one kind of request</span></span></button>

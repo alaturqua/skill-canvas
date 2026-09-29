@@ -244,6 +244,7 @@ h2, h3, p { margin: 0; }
 /* Empty state */
 .empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; }
 .empty-card {
+  position: relative;
   pointer-events: auto;
   width: min(420px, 100%);
   padding: 20px;
@@ -251,7 +252,9 @@ h2, h3, p { margin: 0; }
   border: 1px solid var(--vscode-editorWidget-border, var(--border));
   border-radius: 6px;
 }
-.empty-card h2 { font-size: 16px; font-weight: 600; }
+.empty-card h2 { font-size: 16px; font-weight: 600; padding-right: 28px; }
+.empty-close { position: absolute; top: 12px; right: 12px; background: transparent; color: var(--muted); }
+.empty-close:hover { background: var(--hover); color: var(--fg); }
 .empty-card > p { margin: 4px 0 14px; color: var(--muted); }
 .starters { display: flex; flex-direction: column; }
 .starters button {
