@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A website at [alaturqua.github.io/skill-canvas](https://alaturqua.github.io/skill-canvas/) with a live demo: the real editor runs in the browser and prints the Claude Code and GitHub Copilot files as you edit. The extension's homepage link now points to it.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added

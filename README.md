@@ -2,6 +2,8 @@
 
 Skill Canvas is a VS Code extension for building agent and skill workflows visually, then exporting them as real Claude Code and GitHub Copilot files.
 
+[Try it in your browser](https://alaturqua.github.io/skill-canvas/#try) or install it from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=alaturqua.skill-canvas).
+
 ## What it does
 
 Skill Canvas lets you:

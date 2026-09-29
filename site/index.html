@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill Canvas: sketch the workflow, get real agents and skills</title>
+  <meta name="description" content="A free VS Code extension. Sketch how the work should flow with blocks and arrows, and Skill Canvas writes the agent and skill files that Claude Code and GitHub Copilot run.">
+  <meta name="theme-color" content="#a7d8f5">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://alaturqua.github.io/skill-canvas/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Skill Canvas: sketch the workflow, get real agents and skills">
+  <meta property="og:description" content="Draw how the work should flow in VS Code. Skill Canvas writes the agent and skill files for Claude Code and GitHub Copilot.">
+  <meta property="og:url" content="https://alaturqua.github.io/skill-canvas/">
+  <meta property="og:image" content="https://alaturqua.github.io/skill-canvas/images/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Skill Canvas site: a sticky-note workflow on a whiteboard with the agent and skill files it produces.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="fonts/archivo-100-900.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/kalam-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="demo/runtime/export-bundle.js" defer></script>
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="rail">
+    <a class="brand" href="./" aria-label="Skill Canvas home">
+      <img src="favicon.svg" alt="" width="30" height="30">
+      <span>Skill Canvas</span>
+    </a>
+    <nav class="rail-nav" aria-label="Sections">
+      <a href="#try">Try it</a>
+      <a href="#how">How it works</a>
+      <a href="#import">Import</a>
+      <a href="#files">Where files go</a>
+    </nav>
+    <a class="rail-link" href="https://github.com/alaturqua/skill-canvas">GitHub</a>
+    <a class="rail-install" href="#install">Install</a>
+  </header>
+
+  <main id="main" class="board">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Sketch the workflow. Get real agents and&nbsp;skills.</h1>
+        <p class="lede">Skill Canvas is a free VS Code extension. Draw how the work should flow, answer a few plain questions for each step, and it writes the agent and skill files that Claude Code and GitHub Copilot run. No YAML, no folder rules to learn.</p>
+        <div class="cta">
+          <a class="btn-install" href="vscode:extension/alaturqua.skill-canvas">
+            <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 16.5h12"/></svg>
+            Install in VS Code
+          </a>
+          <a class="btn-line" href="https://marketplace.visualstudio.com/items?itemName=alaturqua.skill-canvas">View on the Marketplace</a>
+        </div>
+        <p class="cli">
+          <span>Or from a terminal:</span>
+          <code>code --install-extension alaturqua.skill-canvas</code>
+          <button class="copy" type="button" data-copy="code --install-extension alaturqua.skill-canvas">Copy</button>
+        </p>
+      </div>
+
+      <figure class="sketch" aria-labelledby="sketch-caption">
+        <svg class="ink" viewBox="0 0 100 112" aria-hidden="true">
+          <path class="stroke blue" d="M37.5 17.5c6-2.6 12.2-4.6 21-4.4"/>
+          <path class="stroke blue head" d="M55.6 10.4l3.4 2.7-3.8 2.2"/>
+          <path class="stroke blue" d="M77.6 25.2c.6 4.6-.2 9.2.4 13.8"/>
+          <path class="stroke blue head" d="M75.4 36.4l2.6 3.2 2.3-3.4"/>
+          <path class="stroke green" d="M59.5 52.4c-6.4 1.4-12.7 2.3-19.6 2.8"/>
+          <path class="stroke green head" d="M42.6 52.3l-3 2.9 3.4 2.3"/>
+          <path class="stroke red" d="M96.4 48.6c4.2-7.4 4.4-24.8-.2-32.4"/>
+          <path class="stroke red head" d="M99 18.6l-2.8-3-1.2 3.9"/>
+          <path class="stroke red" d="M59 69.6c-2.4 1.9-3.4 3.7-3.6 6.4"/>
+          <path class="stroke red head" d="M53.6 73.9l1.8 2.6 2.1-2.4"/>
+        </svg>
+        <span class="scrawl green" style="--x:44;--y:48.6">yes</span>
+        <span class="scrawl red" style="--x:81;--y:29.5">no, retry</span>
+        <span class="scrawl red" style="--x:57;--y:63.6;--r:-3deg">…and prints these files</span>
+
+        <div class="sticky canary" style="--x:3;--y:6;--r:-2.2deg"><b class="no">1</b><small>Input</small><span>Bug report</span></div>
+        <div class="sticky sky" style="--x:60;--y:2;--r:1.8deg"><b class="no">2</b><small>Agent</small><span>Fix &amp; test</span></div>
+        <div class="sticky coral" style="--x:60;--y:40;--r:-1.4deg"><b class="no">3</b><small>If</small><span>Tests pass?</span></div>
+        <div class="sticky mint" style="--x:5;--y:44;--r:2.4deg"><b class="no">4</b><small>Output</small><span>Pull request</span></div>
+
+        <article class="sheet sheet-a" style="--x:1;--y:73;--r:-2.6deg" aria-label="Generated agent file">
+          <span class="magnet red" aria-hidden="true"></span>
+          <header class="tape"><b>Agent</b><span>fix-test</span><code>.claude/agents/fix-test.md</code></header>
+          <pre>{{file:claude:agents/fix-test.md}}</pre>
+        </article>
+        <article class="sheet sheet-b" style="--x:47;--y:77;--r:2deg" aria-label="Generated workflow skill">
+          <span class="magnet blue" aria-hidden="true"></span>
+          <header class="tape"><b>Workflow</b><span>loop-example</span><code>.claude/skills/loop-example/SKILL.md</code></header>
+          <pre>{{file:claude:skills/loop-example/SKILL.md}}</pre>
+        </article>
+        <figcaption id="sketch-caption" class="sr-only">A workflow sketched with sticky notes: bug report, then an agent that fixes and tests, then a check whether the tests pass, which leads to a pull request or back to try again. Beside it, the agent file and the workflow skill file that Skill Canvas writes from it.</figcaption>
+      </figure>
+    </section>
+
+    <section id="try" class="try" aria-labelledby="try-title">
+      <div class="section-head">
+        <h2 id="try-title">Try it on the board</h2>
+        <p>This is the real editor, running in your browser. Drag a block in, connect it, press Arrange. Select an agent or skill and its Claude Code and Copilot files reprint below; the details panel button fills it in. Nothing leaves this page.</p>
+      </div>
+      <div class="try-note">
+        <p class="scrawl-line">Export here only shows what it would save. The extension writes the files.</p>
+        <svg class="note-arrow" viewBox="0 0 40 36" aria-hidden="true"><path class="stroke red" d="M5 5c13 1 23 9 27 24"/><path class="stroke red" d="M25.5 24.5l6.5 6 3.5-8"/></svg>
+      </div>
+      <div class="screen">
+        <span class="magnet black" aria-hidden="true"></span>
+        <span class="magnet black" aria-hidden="true"></span>
+        <div class="screen-bar" aria-hidden="true"><span>loop-example.skillcanvas</span><span>Skill Canvas</span></div>
+        <iframe class="demo" src="demo/" title="Skill Canvas editor, live demo" loading="lazy"></iframe>
+        <figure class="screen-small">
+          <img src="images/board-td.png" alt="Part of the Skill Canvas board, arranged top to bottom: Bug report, Up to 3 tries, the Fix &amp; test agent using the Write PR notes skill, Tests pass?, then Pull request." width="1144" height="1936" loading="lazy">
+          <figcaption>Part of the same board, arranged top to bottom. The live board needs a wider screen. <a href="demo/">Open it anyway</a></figcaption>
+        </figure>
+      </div>
+      <div class="fields" role="group" aria-label="One sketch, two editions">
+        <div class="field coral">
+          <h3>Claude Code edition</h3>
+          <article class="sheet" data-edition="claude" aria-live="polite">
+            <span class="magnet red" aria-hidden="true"></span>
+            <header class="tape"><b>Agent</b><span>fix-test</span><code>.claude/agents/fix-test.md</code></header>
+            <pre>{{file:claude:agents/fix-test.md}}</pre>
+          </article>
+        </div>
+        <div class="field sky">
+          <h3>GitHub Copilot edition</h3>
+          <article class="sheet" data-edition="copilot" aria-live="polite">
+            <span class="magnet blue" aria-hidden="true"></span>
+            <header class="tape"><b>Agent</b><span>fix-test</span><code>.github/agents/fix-test.agent.md</code></header>
+            <pre>{{file:copilot:agents/fix-test.agent.md}}</pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="path" aria-labelledby="how-title">
+      <div class="section-head">
+        <h2 id="how-title">From sketch to a running workflow</h2>
+        <p>Five steps, all inside VS Code.</p>
+      </div>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-no" aria-hidden="true">1</span>
+          <div class="step-note canary">
+            <h3>Sketch</h3>
+            <p>Drag blocks onto the board: Input, Agent, Skill, Tool, If, Loop and Output. Or start from a ready-made starter.</p>
+          </div>
+          <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><rect x="8" y="14" width="30" height="22" rx="3"/><rect x="82" y="14" width="30" height="22" rx="3"/><rect x="45" y="48" width="30" height="22" rx="3"/><path d="M38 25h40M74 21l4 4-4 4M97 36c0 12-8 20-18 22M83 55l-4 3 4 3"/></svg>
+        </li>
+        <li class="step">
+          <span class="step-no" aria-hidden="true">2</span>
+          <div class="step-note sky">
+            <h3>Fill in</h3>
+            <p>Each block asks plain questions: what it's for, its instructions, which tools it may use. The preview shows the file it becomes.</p>
+          </div>
+          <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><rect x="14" y="8" width="62" height="64" rx="4"/><path d="M24 22h30M24 34h42M24 46h36M24 58h20M84 64l20-34 8 5-20 34-10 4z"/></svg>
+        </li>
+        <li class="step">
+          <span class="step-no" aria-hidden="true">3</span>
+          <div class="step-note coral">
+            <h3>Connect</h3>
+            <p>Arrows set the order. A dotted <em>uses</em> link gives an agent a skill or tool. If and Loop handle yes, no and retries. Arrange tidies it all left to right or top to bottom.</p>
+          </div>
+          <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><circle cx="18" cy="24" r="10"/><circle cx="62" cy="24" r="10"/><circle cx="104" cy="24" r="10"/><circle cx="62" cy="64" r="10"/><path d="M28 24h22M46 20l4 4-4 4M72 24h20M88 20l4 4-4 4"/><path class="dots" d="M62 35v18"/></svg>
+        </li>
+        <li class="step">
+          <span class="step-no" aria-hidden="true">4</span>
+          <div class="step-note mint">
+            <h3>Export</h3>
+            <p>Save to this project or to all your projects. Skill Canvas lists every file before writing, and updates the ones it wrote last time.</p>
+          </div>
+          <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><path d="M12 10h32l10 10v46H12z"/><path d="M44 10v10h10M20 34h24M20 44h24M20 54h16"/><path d="M62 38h26M82 32l6 6-6 6"/><path d="M92 28h10l4 5h8v33H92z"/></svg>
+        </li>
+        <li class="step">
+          <span class="step-no" aria-hidden="true">5</span>
+          <div class="step-note canary">
+            <h3>Run</h3>
+            <p>Type the workflow's command, like <code>/loop-example</code>, in Claude Code or GitHub Copilot Chat.</p>
+          </div>
+          <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><path d="M10 12h100v42H44l-16 14V54H10z"/><path d="M24 34l6-8M36 26h40"/></svg>
+        </li>
+      </ol>
+    </section>
+
+    <section id="import" class="import" aria-labelledby="import-title">
+      <div class="import-copy">
+        <h2 id="import-title">Already have agents and skills?</h2>
+        <p>Import brings them onto the board from <code>.claude</code> or <code>.github</code> in your project, or from your user folder. Skills an agent preloads arrive already linked. Edit them on the board, export, and the same files update in place.</p>
+      </div>
+      <figure class="import-art" aria-hidden="true">
+        <div class="stack">
+          <div class="sheet mini" style="--r:-4deg"><header class="tape"><b>Agent</b><span>code-reviewer</span></header></div>
+          <div class="sheet mini" style="--r:2deg"><header class="tape"><b>Skill</b><span>code-standards</span></header></div>
+          <div class="sheet mini" style="--r:-1deg"><header class="tape"><b>Agent</b><span>planner</span></header></div>
+        </div>
+        <svg class="ink import-arrow" viewBox="0 0 80 40"><path class="stroke blue" d="M4 22c20-10 42-12 66-4"/><path class="stroke blue head" d="M64 12l7 6-8 4"/></svg>
+        <div class="sticky sky flat"><small>Agent</small><span>Code reviewer</span></div>
+      </figure>
+    </section>
+
+    <section id="files" class="files" aria-labelledby="files-title">
+      <div class="card">
+        <span class="magnet red" aria-hidden="true"></span>
+        <span class="magnet blue" aria-hidden="true"></span>
+        <h2 id="files-title">Where the files go</h2>
+        <p>Standard locations, so the tools find them without Skill Canvas installed.</p>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Export locations for each tool</caption>
+            <thead><tr><th scope="col">For</th><th scope="col">Agents</th><th scope="col">Skills and workflows</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Claude Code, this project</th><td data-label="Agents"><code>.claude/agents/&lt;name&gt;.md</code></td><td data-label="Skills and workflows"><code>.claude/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+              <tr><th scope="row">Claude Code, all projects</th><td data-label="Agents"><code>~/.claude/agents/&lt;name&gt;.md</code></td><td data-label="Skills and workflows"><code>~/.claude/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+              <tr><th scope="row">GitHub Copilot, this project</th><td data-label="Agents"><code>.github/agents/&lt;name&gt;.agent.md</code></td><td data-label="Skills and workflows"><code>.github/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+              <tr><th scope="row">GitHub Copilot, all projects</th><td data-label="Agents"><code>~/.copilot/agents/&lt;name&gt;.agent.md</code></td><td data-label="Skills and workflows"><code>~/.copilot/skills/&lt;name&gt;/SKILL.md</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="install" class="close" aria-labelledby="install-title">
+    <h2 id="install-title">Put your process on the board.</h2>
+    <p>Free and open source under the Apache License 2.0.</p>
+    <div class="cta">
+      <a class="btn-install" href="vscode:extension/alaturqua.skill-canvas">
+        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10M5.5 8.5 10 13l4.5-4.5M4 16.5h12"/></svg>
+        Install in VS Code
+      </a>
+      <a class="btn-line" href="https://marketplace.visualstudio.com/items?itemName=alaturqua.skill-canvas">View on the Marketplace</a>
+    </div>
+    <p class="cli">
+      <span>Or from a terminal:</span>
+      <code>code --install-extension alaturqua.skill-canvas</code>
+      <button class="copy" type="button" data-copy="code --install-extension alaturqua.skill-canvas">Copy</button>
+    </p>
+  </section>
+
+  <footer class="tray">
+    <svg class="markers" viewBox="0 0 260 28" aria-hidden="true">
+      <g class="marker black"><rect x="6" y="9" width="46" height="12" rx="3"/><rect x="52" y="10.5" width="9" height="9" rx="2"/></g>
+      <g class="marker blue"><rect x="70" y="9" width="46" height="12" rx="3"/><rect x="116" y="10.5" width="9" height="9" rx="2"/></g>
+      <g class="marker red"><rect x="134" y="9" width="46" height="12" rx="3"/><rect x="180" y="10.5" width="9" height="9" rx="2"/></g>
+      <g class="marker green"><rect x="198" y="9" width="46" height="12" rx="3"/><rect x="244" y="10.5" width="9" height="9" rx="2"/></g>
+    </svg>
+    <nav class="tray-links" aria-label="Project">
+      <a href="https://marketplace.visualstudio.com/items?itemName=alaturqua.skill-canvas">Marketplace</a>
+      <a href="https://github.com/alaturqua/skill-canvas">GitHub</a>
+      <a href="https://github.com/alaturqua/skill-canvas/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/alaturqua/skill-canvas/issues/new/choose">Report an issue</a>
+      <a href="https://github.com/alaturqua/skill-canvas/blob/main/LICENSE">License</a>
+    </nav>
+    <p class="fine">Skill Canvas is an independent open-source project and is not affiliated with Anthropic or GitHub. Claude Code and GitHub Copilot are trademarks of their owners.</p>
+  </footer>
+
+  <dialog class="export-dialog" aria-labelledby="export-title">
+    <form method="dialog">
+      <h2 id="export-title">In VS Code, Export saves these files</h2>
+      <ul class="export-files"></ul>
+      <p class="export-next"></p>
+      <div class="cta">
+        <a class="btn-install" href="vscode:extension/alaturqua.skill-canvas">Install in VS Code</a>
+        <button class="btn-line" value="close">Keep playing</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

@@ -10,7 +10,7 @@
     "type": "git",
     "url": "https://github.com/alaturqua/skill-canvas.git"
   },
-  "homepage": "https://github.com/alaturqua/skill-canvas#readme",
+  "homepage": "https://alaturqua.github.io/skill-canvas/",
   "bugs": {
     "url": "https://github.com/alaturqua/skill-canvas/issues"
   },
@@ -117,7 +117,8 @@
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
     "test": "npm run compile && cd test && node --test",
-    "lint": "tsc --noEmit -p . && node --check media/canvas.js"
+    "lint": "tsc --noEmit -p . && node --check media/canvas.js",
+    "build:site": "npm run compile && node scripts/build-site.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

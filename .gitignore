@@ -13,3 +13,4 @@ sandbox/*
 Thumbs.db
 .venv/
 .impeccable/
+_site/

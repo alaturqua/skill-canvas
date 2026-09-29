@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" fill="none" stroke="#5b6270" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Faint residue of erased dry-erase marker, as on a well-used whiteboard. -->
+  <g stroke-opacity=".028" stroke-width="10">
+    <path d="M120 140c60-18 132-22 204-10s140 10 196-8"/>
+        <path d="M260 620c80 12 150 8 214-10 56-16 118-18 176 4"/>
+  </g>
+  <g stroke-opacity=".03" stroke-width="3">
+    <path d="M150 190c30-6 52 8 70 2s36-12 58-4 40 6 60-2"/>
+    <path d="M1080 520c20 40 64 60 110 52M1120 600c30 6 60-2 86-20"/>
+        <path d="M540 820c46-10 90-12 134-2"/>
+      </g>
+  <g stroke-opacity=".02" stroke-width="18">
+    <path d="M760 160c90 24 186 30 290 12"/>
+    <path d="M60 760c120-30 230-36 330-14"/>
+  </g>
+</svg>
