@@ -2,7 +2,7 @@
   "name": "skill-canvas",
   "displayName": "Skill Canvas",
   "description": "Visual canvas for building agent and skill workflows.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "icon": "media/skill-canvas.png",
   "publisher": "alaturqua",
   "license": "Apache-2.0",
@@ -30,8 +30,20 @@
     "claude"
   ],
   "main": "./out/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
   "contributes": {
+    "configuration": {
+      "title": "Skill Canvas",
+      "properties": {
+        "skillCanvas.lint.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Check `SKILL.md` and agent files against Anthropic's skill authoring best practices while you edit them as text. Problems that Claude would reject show as warnings; tips show as information."
+        }
+      }
+    },
     "commands": [
       {
         "command": "skillCanvas.new",
@@ -117,12 +129,15 @@
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
     "test": "npm run compile && cd test && node --test",
+    "test:vscode": "npm run compile && vscode-test",
     "lint": "tsc --noEmit -p . && node --check media/canvas.js",
     "build:site": "npm run compile && node scripts/build-site.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
     "@types/vscode": "^1.90.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
     "typescript": "^5.5.0"
   }

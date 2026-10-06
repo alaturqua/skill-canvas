@@ -8,6 +8,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-06
+
+Skill Canvas now follows Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) and supports the newer Claude Code settings for skills and agents.
+
+### Added
+
+- **Best-practice checks.** Each agent and skill is checked as you work:
+  - **Things to fix** are things Claude would reject or cut off. Examples: a name with capitals or with "claude" or "anthropic" in it, a description over 1,024 characters (or over 1,536 together with "More about when to use it"), XML tags, and settings Claude Code doesn't accept.
+  - **Tips** are the guide's advice:
+    - Say when to use it, and write in the third person ("Writes release notes…", not "I can…").
+    - Be specific, and avoid generic names like `helper`.
+    - Keep instructions under 500 lines, and use forward slashes in paths.
+    - Avoid dates that will go out of date.
+    - Link only to files that exist, and give extra files over 100 lines a contents list.
+    - Write at least 3 test scenarios.
+  - Tips look quieter and aren't counted as things to fix. When there are no problems, the toolbar says **Ready · N tips**.
+  - Descriptions show a character count.
+- **Problems in the text editor.** When you open a `SKILL.md` or agent file as text, the same checks show as warnings and information in the Problems view. They also apply to files you didn't make with the canvas. Turn this off with the new `skillCanvas.lint.enabled` setting.
+- **Extra files for skills.** These are details the AI only reads when needed, like a long reference or examples. They're saved next to `SKILL.md` (for example `reference/forms.md`) and linked from it, one level deep, so the main instructions stay short.
+- **Test scenarios for skills.** Each scenario is a request and what a good result does. They're saved as `evals/evals.json` in the guide's evaluation format.
+- **Claude Code settings** under **Advanced**:
+  - Skills: more about when to use it, who can start it (you, the AI, or both), run on its own as a separate agent, model, effort, and only for files matching certain patterns.
+  - Agents: effort, a turn limit, permissions, tools it may never use, memory, working in a separate copy of the repository, and color.
+- **Agents that hand work to other agents.** Link one agent to another, like a lead and its helpers. The lead is told their names and gets the Agent tool. A tip explains that `Agent(name, …)` only limits which agents it can start when it runs as the main session.
+- More tools to choose from: hand work to other agents, use skills, keep a to-do list, and edit notebooks. There's also a hint for MCP tool names.
+- Two starters: **Skill with a check** (the guide's check-and-fix loop) and **Read-only reviewer**.
+- The details panel can be resized: drag its left edge, or focus the edge and use the arrow keys. Double-click resets it.
+- The generated workflow starts with a checklist of its steps, to copy and check off while it runs.
+
+### Changed
+
+- When you haven't written descriptions yet, the defaults follow the guide: they say what the block does and when to use it.
+- The export list counts things to fix and tips separately.
+- Removing a skill also removes the folders it leaves empty.
+
+### Fixed
+
+- Re-exporting an imported agent or skill no longer drops settings the canvas doesn't show, such as `hooks`, `mcpServers`, `license` or `metadata`. They're kept exactly as written.
+- Descriptions written over several lines (`description: >`, or a value continued on the next line) now import correctly.
+- A Copilot agent's list of fallback models is kept, instead of only the first model.
+- Importing a skill now reads its whole folder:
+  - Markdown files become extra files.
+  - Test scenarios are read.
+  - Other files, like scripts, are listed and left untouched.
+- Duplicating a block no longer shares its extra files and test scenarios with the original.
+- Comments on their own line in an agent's or skill's frontmatter are kept when it's exported again.
+- A comment at the end of a line (`model: sonnet # fast`) no longer ends up in the value.
+
+### Development
+
+- Tests that run inside VS Code (`npm run test:vscode`) cover problems in the text editor, reading a skill's folder, removing emptied folders and opening the canvas editor. CI runs them on Linux and Windows.
+- The screenshots and the animation in the README show this release.
+
+## [0.2.1] - 2026-09-29
+
 ### Added
 
 - A website at [alaturqua.github.io/skill-canvas](https://alaturqua.github.io/skill-canvas/) with a live demo: the real editor runs in the browser and prints the Claude Code and GitHub Copilot files as you edit. The extension's homepage link now points to it.
@@ -63,7 +118,9 @@ First public release. Version 0.1.0 was prepared but not published.
 
 - Licensed under the Apache License 2.0.
 
-[Unreleased]: https://github.com/alaturqua/skill-canvas/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/alaturqua/skill-canvas/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/alaturqua/skill-canvas/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/alaturqua/skill-canvas/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/alaturqua/skill-canvas/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/alaturqua/skill-canvas/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/alaturqua/skill-canvas/compare/v0.1.1...v0.1.2

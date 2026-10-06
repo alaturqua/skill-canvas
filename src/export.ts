@@ -1,10 +1,12 @@
-import { CanvasEdge, CanvasModel, CanvasNode, isUses, OUTPUTS, Target } from './model';
+import { Level, LintIssue, lintAgent, lintSkill } from './lint';
+import { CanvasEdge, CanvasModel, CanvasNode, isUses, OUTPUTS, SkillFile, Target, TestScenario } from './model';
 
 /** A file to write, with a path relative to the target's root folder. */
 export interface ExportFile {
   path: string;
   content: string;
-  kind: 'agent' | 'skill' | 'workflow';
+  /** 'reference': an extra file in a skill's folder. 'evals': a skill's test scenarios. */
+  kind: 'agent' | 'skill' | 'workflow' | 'reference' | 'evals';
   /** Agent/skill block this file was generated from; unset for the workflow skill. */
   nodeId?: string;
   /** Workflow skill only: line index of each block's step. */
@@ -16,7 +18,17 @@ export interface ExportWarning {
   /** Side-panel field the warning is about, so it can be shown next to it. */
   field?: string;
   text: string;
+  /** 'tip' is advice from the best practices; anything else is a thing to fix. */
+  level?: Level;
 }
+
+/** Side-panel field for each key the checks in lint.ts report on. */
+const LINT_FIELDS: Record<string, string> = {
+  when_to_use: 'whenToUse',
+  body: 'prompt',
+  'allowed-tools': 'tools',
+  isolation: 'worktree',
+};
 
 export interface ExportResult {
   files: ExportFile[];
@@ -37,6 +49,11 @@ export const ROOTS: Record<Target, { project: string; user: string; label: strin
 
 const CLAUDE_MODEL_ALIASES = ['inherit', 'sonnet', 'opus', 'haiku', 'fable'];
 
+/** Sentence that names the agents an agent can hand work to, at the end of its instructions. */
+export const HELPERS_NOTE = 'Hand work to these agents when it helps: ';
+/** Finds that sentence; group 1 is the list of names. */
+export const HELPERS_LINE = /\n*Hand work to these agents when it helps: ([^\n]*)$/;
+
 /** Agent/skill names: lowercase letters, digits and hyphens, max 64 chars. */
 export function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -52,18 +69,104 @@ function yamlScalar(s: string): string {
   return /^[A-Za-z0-9][\w .,()/'-]*$/.test(s) ? s : JSON.stringify(s);
 }
 
-function frontmatter(fields: Record<string, string | string[] | undefined>): string {
+/** The header of an agent or skill file. `extra` is frontmatter kept as written, after the fields. */
+function frontmatter(fields: Record<string, string | string[] | undefined>, extra?: string): string {
   const lines: string[] = [];
+  const written = new Set<string>();
   for (const [key, value] of Object.entries(fields)) {
     if (Array.isArray(value)) {
       if (value.length) {
         lines.push(`${key}:`, ...value.map((v) => `  - ${yamlScalar(v)}`));
+        written.add(key);
       }
     } else if (oneLine(value)) {
       lines.push(`${key}: ${yamlScalar(oneLine(value))}`);
+      written.add(key);
     }
   }
+  // A kept key the canvas now writes itself (e.g. after switching target) would be a duplicate.
+  if (extra?.trim()) {
+    lines.push(...parseFile(`---\n${extra}\n---\n`).raw.filter((b) => !written.has(b.key)).map((b) => b.text));
+  }
   return `---\n${lines.join('\n')}\n---\n\n`;
+}
+
+/** Description written for a block that has none yet, worded the way the guide asks for. */
+const placeholder = (name: string, wfName: string) =>
+  `Handles the "${name}" step of the ${wfName} workflow. Use when running ${wfName}.`;
+/** Placeholder from versions before 0.3.0, recognised when reading a file back. */
+const oldPlaceholder = (name: string, wfName: string) => `${name} (from the ${wfName} workflow).`;
+
+/** The default workflow description: what it does, and when to run it. */
+function workflowDescription(wfName: string, order: CanvasNode[]): string {
+  const note = oneLine(order.find((n) => n.kind === 'input')?.prompt).replace(/[.!]+$/, '');
+  // "A bug report" reads as "a bug report" mid-sentence; acronyms like "PDF" stay.
+  const given = note ? `, or gives ${/^[A-Z](?![A-Z])/.test(note) ? note[0].toLowerCase() + note.slice(1) : note}` : '';
+  return `Runs the ${wfName} workflow step by step. Use when the user asks to run ${wfName}${given}.`;
+}
+
+/** A path inside a skill's folder, with forward slashes; undefined if it would leave the folder. */
+export function skillFilePath(p: string): string | undefined {
+  const s = p.trim().replace(/\\/g, '/');
+  const parts = s.split('/').filter((x) => x && x !== '.');
+  if (!parts.length || s.startsWith('/') || /^[a-z]:/i.test(s) || parts.includes('..')) {
+    return undefined;
+  }
+  const path = parts.join('/');
+  return path.toLowerCase() === 'skill.md' ? undefined : path;
+}
+
+const MORE_DETAIL = '## More detail';
+const DETAIL_LINE = /^- \[([^\]]+)\]\(([^)\s]+)\)(?::\s*(.*))?$/;
+
+/** The list of extra files at the end of SKILL.md, for those the instructions don't link to yet. */
+function moreDetail(refs: SkillFile[], prompt: string): string {
+  const unlinked = refs.filter((r) => !prompt.includes(`](${r.path})`));
+  if (!unlinked.length) {
+    return '';
+  }
+  const items = unlinked.map((r) => `- [${r.path}](${r.path})${oneLine(r.when) ? `: ${oneLine(r.when)}` : ''}`);
+  return `\n\n${MORE_DETAIL}\n\n${items.join('\n')}`;
+}
+
+/**
+ * Takes the generated list of extra files off the end of SKILL.md, with the "when" text of
+ * each. Undefined when there's no such list, or it has lines the canvas didn't write.
+ */
+export function stripMoreDetail(body: string, paths: string[]): { body: string; when: Record<string, string | undefined> } | undefined {
+  const at = body.lastIndexOf(MORE_DETAIL);
+  if (at < 0 || (at > 0 && body[at - 1] !== '\n')) {
+    return undefined;
+  }
+  const when: Record<string, string | undefined> = {};
+  for (const line of body.slice(at + MORE_DETAIL.length).split('\n').filter((l) => l.trim())) {
+    const m = DETAIL_LINE.exec(line.trim());
+    if (!m || m[1] !== m[2] || !paths.includes(m[2])) {
+      return undefined;
+    }
+    when[m[2]] = m[3]?.trim() || undefined;
+  }
+  return { body: body.slice(0, at).replace(/\s+$/, ''), when };
+}
+
+/** A skill's test scenarios in the guide's evaluation format. */
+function evalsJson(skill: string, scenarios: TestScenario[]): string {
+  const lines = (s: string | undefined) => (s ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const items = scenarios.map((e) => ({ skills: [skill], query: e.query.trim(), files: list(e.files), expected_behavior: lines(e.expected) }));
+  return `${JSON.stringify(items, null, 2)}\n`;
+}
+
+/** Folders in a skill's folder to remove, deepest first, once a file in them is gone and they're empty. */
+export function foldersToTidy(path: string): string[] {
+  const parts = path.split('/');
+  if (parts[0] !== 'skills' || parts.length < 3) {
+    return [];
+  }
+  const out: string[] = [];
+  for (let i = parts.length - 1; i >= 2; i--) {
+    out.push(parts.slice(0, i).join('/'));
+  }
+  return out;
 }
 
 /**
@@ -111,11 +214,10 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     }
     const name = names[n.id];
     const warn = (field: string, text: string) => warnings.push({ nodeId: n.id, field, text });
-    let description = n.description?.trim();
-    if (!description) {
-      warn('description', `Add what it's for. The AI reads this to decide when to use this ${n.kind}.`);
-      description = `${n.name} (from the ${wfName} workflow).`;
-    }
+    const check = (issues: LintIssue[]) =>
+      issues.forEach((i) => warnings.push({ nodeId: n.id, field: LINT_FIELDS[i.key] ?? i.key, text: i.text, level: i.level }));
+    // An empty description is reported by the checks below.
+    const description = n.description?.trim() || placeholder(n.name, wfName);
     const prompt = n.prompt?.trim();
     if (!prompt) {
       warn('prompt', n.kind === 'agent' ? 'Add instructions so the agent knows how to work.' : 'Add the instructions this skill should follow.');
@@ -125,8 +227,11 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
       const linked = usedBy(n);
       const linkedTools = linked.filter((t) => t.kind === 'tool').map((t) => t.name.trim()).filter(Boolean);
       const linkedSkills = linked.filter((t) => t.kind === 'skill').map((t) => names[t.id]);
+      // Agents it can hand work to: it needs the Agent tool, and is told their names.
+      const helpers = linked.filter((t) => t.kind === 'agent').map((t) => names[t.id]);
       const restrict = n.toolsMode === 'only' || (n.toolsMode === undefined && !!n.tools?.trim()) || linkedTools.length > 0;
-      const tools = restrict ? unique([...list(n.tools), ...linkedTools]) : [];
+      const delegates = target === 'claude' && helpers.length && !list(n.tools).some((t) => /^Agent\b/.test(t)) ? ['Agent'] : [];
+      const tools = restrict ? unique([...list(n.tools), ...linkedTools, ...delegates]) : [];
       if (restrict && !tools.length) {
         warn('tools', 'Choose at least one tool, or switch to "All tools".');
       }
@@ -141,33 +246,107 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
       }
 
       let body = prompt || `You are ${n.name}.`;
+      if (helpers.length) {
+        body += `\n\n${HELPERS_NOTE}${helpers.map((s) => `\`${s}\``).join(', ')}.`;
+      }
       // Copilot agents have no field for skills, so name them in the instructions.
       if (target === 'copilot' && skills.length) {
         body += `\n\nWhen it helps, use these skills: ${skills.map((s) => `\`${s}\``).join(', ')}.`;
       }
       const fields =
         target === 'claude'
-          ? { name, description, tools: tools.join(', '), model, skills }
+          ? {
+              name,
+              description,
+              tools: tools.join(', '),
+              disallowedTools: n.disallowedTools,
+              model,
+              effort: n.effort,
+              maxTurns: n.maxTurns ? String(n.maxTurns) : undefined,
+              permissionMode: n.permissionMode,
+              memory: n.memory,
+              isolation: n.worktree ? 'worktree' : undefined,
+              color: n.color,
+              skills,
+            }
           : { name, description, tools, model };
+      check(lintAgent({
+        name,
+        description: n.description,
+        tools: tools.join(', '),
+        disallowedTools: n.disallowedTools,
+        model,
+        effort: n.effort,
+        permissionMode: n.permissionMode,
+        memory: n.memory,
+        color: n.color,
+        maxTurns: n.maxTurns,
+        target,
+      }));
       files.push({
         path: target === 'claude' ? `agents/${name}.md` : `agents/${name}.agent.md`,
-        content: frontmatter(fields) + `${body}\n`,
+        content: frontmatter(fields, n.extra) + `${body}\n`,
         kind: 'agent',
         nodeId: n.id,
       });
     } else {
+      const claude = target === 'claude';
+      const refs: SkillFile[] = [];
+      for (const r of n.references ?? []) {
+        const path = skillFilePath(r.path ?? '');
+        if (!path) {
+          warn('references', r.path?.trim()
+            ? `"${r.path}" can't be saved: extra files have to stay inside the skill's folder.`
+            : 'Give each extra file a name.');
+        } else if (refs.some((x) => x.path === path)) {
+          warn('references', `Two extra files are called ${path}. Only the first is saved.`);
+        } else {
+          refs.push({ ...r, path });
+        }
+      }
+      const scenarios = (n.evals ?? []).filter((e) => e.query?.trim());
+      const other = n.otherFiles ?? [];
+      const body = (prompt || `# ${n.name}`) + moreDetail(refs, prompt ?? '');
+      check(lintSkill({
+        name,
+        description: n.description,
+        whenToUse: n.whenToUse,
+        body,
+        tools: n.tools,
+        model: n.model,
+        effort: n.effort,
+        target,
+        references: refs,
+        files: [...other, ...refs.map((r) => r.path), ...(scenarios.length ? ['evals/evals.json'] : [])],
+        // Scenarios kept as they were found (another format) still count.
+        evalCount: !scenarios.length && other.includes('evals/evals.json') ? undefined : scenarios.length,
+      }));
       files.push({
         path: `skills/${name}/SKILL.md`,
         content:
           frontmatter({
             name,
             description,
+            when_to_use: claude ? n.whenToUse : undefined,
             'argument-hint': n.argumentHint,
-            'allowed-tools': target === 'claude' ? n.tools : undefined,
-          }) + `${prompt || `# ${n.name}`}\n`,
+            'allowed-tools': claude ? n.tools : undefined,
+            'disable-model-invocation': claude && n.invocation === 'user' ? 'true' : undefined,
+            'user-invocable': claude && n.invocation === 'claude' ? 'false' : undefined,
+            context: claude && n.fork ? 'fork' : undefined,
+            agent: claude && n.fork ? n.forkAgent : undefined,
+            model: claude ? n.model : undefined,
+            effort: claude ? n.effort : undefined,
+            paths: claude ? list(n.paths) : undefined,
+          }, n.extra) + `${body}\n`,
         kind: 'skill',
         nodeId: n.id,
       });
+      for (const r of refs) {
+        files.push({ path: `skills/${name}/${r.path}`, content: `${r.content.replace(/\s+$/, '')}\n`, kind: 'reference', nodeId: n.id });
+      }
+      if (scenarios.length) {
+        files.push({ path: `skills/${name}/evals/evals.json`, content: evalsJson(name, scenarios), kind: 'evals', nodeId: n.id });
+      }
     }
   }
 
@@ -188,11 +367,13 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
 
   let command: string | undefined;
   if (flow.order.length >= 2) {
-    const head = frontmatter({
-      name: wfSlug,
-      description: model.description?.trim() || `Run the ${wfName} workflow.`,
-      'argument-hint': model.argumentHint,
-    });
+    const description = model.description?.trim() || workflowDescription(wfName, flow.order);
+    for (const i of lintSkill({ name: wfSlug, description, target })) {
+      if (i.key === 'name' || i.key === 'description') {
+        warnings.push({ field: i.key === 'description' ? 'description' : undefined, text: i.text, level: i.level });
+      }
+    }
+    const head = frontmatter({ name: wfSlug, description, 'argument-hint': model.argumentHint });
     const body = workflowBody(model, wfName, flow.order, next, names, target);
     const offset = head.split('\n').length - 1;
     const steps: Record<string, number> = {};
@@ -206,31 +387,171 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
   return { files, warnings, command, names, steps: stepNumbers };
 }
 
-/** Splits a generated file into its frontmatter fields and body. */
-export function parseFile(text: string): { fields: Record<string, string | string[]>; body: string } {
+/** A top-level frontmatter key exactly as written: its line and the indented lines under it. */
+export interface RawKey {
+  key: string;
+  text: string;
+  /** Line of the key in the file, from 0. */
+  line: number;
+}
+
+export interface ParsedFile {
+  fields: Record<string, string | string[]>;
+  body: string;
+  /** Every top-level key as written, in order. Lines before the first key come back as key `#`. */
+  raw: RawKey[];
+  /** Line where the body text starts, from 0. */
+  bodyLine: number;
+}
+
+/** Splits an agent or skill file into its frontmatter fields and body. */
+export function parseFile(text: string): ParsedFile {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const fields: Record<string, string | string[]> = {};
-  let bodyLines = lines;
+  const raw: RawKey[] = [];
+  let start = 0;
   const end = lines[0]?.trim() === '---' ? lines.findIndex((l, i) => i > 0 && l.trim() === '---') : -1;
   if (end > 0) {
-    let key: string | undefined;
-    for (const line of lines.slice(1, end)) {
-      const item = /^\s+-\s*(.*)$/.exec(line);
-      if (item && key) {
-        const current = fields[key];
-        fields[key] = [...(Array.isArray(current) ? current : current ? [current] : []), unquote(item[1])];
-        continue;
-      }
-      const kv = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
-      if (kv) {
-        key = kv[1];
-        const v = kv[2].trim();
-        fields[key] = v.startsWith('[') && v.endsWith(']') ? list(v.slice(1, -1)).map(unquote) : unquote(v);
+    for (let i = 1; i < end; i++) {
+      const key = /^([A-Za-z][\w-]*):/.exec(lines[i]);
+      if (key) {
+        raw.push({ key: key[1], text: lines[i], line: i });
+      } else if (lines[i].startsWith('#')) {
+        // A comment of its own is kept as written, even next to keys the canvas rewrites.
+        raw.push({ key: '#', text: lines[i], line: i });
+      } else if (raw.length) {
+        raw[raw.length - 1].text += `\n${lines[i]}`;
+      } else if (lines[i].trim()) {
+        raw.push({ key: '#', text: lines[i], line: i });
       }
     }
-    bodyLines = lines.slice(end + 1);
+    for (const b of raw) {
+      b.text = b.text.replace(/\s+$/, '');
+      if (b.key !== '#') {
+        fields[b.key] = valueOf(b.text);
+      }
+    }
+    start = end + 1;
   }
-  return { fields, body: bodyLines.join('\n').replace(/^\n+|\s+$/g, '') };
+  while (start < lines.length - 1 && !lines[start].trim()) {
+    start++;
+  }
+  return { fields, body: lines.slice(start).join('\n').replace(/\s+$/, ''), raw, bodyLine: start };
+}
+
+/** The value of one top-level key: a string, a list, or for nested maps the text under the key. */
+/** A value without a trailing `# comment`. A `#` inside quotes or a word (like C#) stays. */
+function stripComment(v: string): string {
+  const quoted = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s*(#.*)?$/.exec(v.trim());
+  return quoted ? quoted[1] : v.replace(/(^|\s)#.*$/, '').trim();
+}
+
+function valueOf(block: string): string | string[] {
+  const [first, ...rest] = block.split('\n');
+  const v = stripComment(first.slice(first.indexOf(':') + 1));
+  const filled = rest.filter((l) => l.trim() && !/^\s*#/.test(l));
+  if (/^[>|][-+]?\d*$/.test(v)) {
+    const indent = Math.min(...filled.map((l) => /^\s*/.exec(l)![0].length));
+    const text = rest.map((l) => l.slice(indent).trimEnd()).join('\n').trim();
+    // Folded (>) joins lines into paragraphs; literal (|) keeps them.
+    return v[0] === '|' ? text : text.split(/\n\s*\n/).map((p) => p.split('\n').map((s) => s.trim()).join(' ')).join('\n');
+  }
+  if (!v) {
+    if (filled.length && filled.every((l) => /^\s*-(\s|$)/.test(l))) {
+      return filled.map((l) => unquote(stripComment(l.replace(/^\s*-\s*/, ''))));
+    }
+    return rest.join('\n').trim();
+  }
+  if (v.startsWith('[') && v.endsWith(']')) {
+    return list(v.slice(1, -1)).map(unquote);
+  }
+  // A plain or quoted value, possibly continued on the next lines.
+  return unquote([v, ...filled.map((l) => stripComment(l))].join(' '));
+}
+
+const CLAUDE_AGENT_KEYS = ['name', 'description', 'tools', 'disallowedTools', 'model', 'effort', 'maxTurns', 'permissionMode', 'memory', 'isolation', 'color', 'skills'];
+const CLAUDE_SKILL_KEYS = [
+  'name', 'description', 'when_to_use', 'argument-hint', 'allowed-tools', 'disable-model-invocation',
+  'user-invocable', 'context', 'agent', 'model', 'effort', 'paths',
+];
+
+/** Frontmatter keys the canvas edits for a block. Everything else is kept as written, in `extra`. */
+export function knownKeys(kind: 'agent' | 'skill', target: Target): string[] {
+  if (kind === 'agent') {
+    return target === 'claude' ? CLAUDE_AGENT_KEYS : ['name', 'description', 'tools', 'model'];
+  }
+  return target === 'claude' ? CLAUDE_SKILL_KEYS : ['name', 'description', 'argument-hint'];
+}
+
+/** YAML booleans as Claude Code reads them; undefined when it isn't one. */
+function bool(v: string | string[] | undefined): boolean | undefined {
+  const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  return ['true', 'yes', 'on', '1'].includes(s) ? true : ['false', 'no', 'off', '0'].includes(s) ? false : undefined;
+}
+
+/**
+ * The known keys whose values fit the canvas's fields. The rest are kept as written, e.g. a
+ * list of fallback models (Copilot), `context` other than fork, or a skill hidden from everyone.
+ */
+export function editableKeys(kind: 'agent' | 'skill', target: Target, fields: ParsedFile['fields']): string[] {
+  const keep = new Set<string>();
+  const model = fields.model;
+  if (Array.isArray(model) && model.length > 1) {
+    keep.add('model');
+  }
+  if (fields.context !== 'fork') {
+    keep.add('agent'); // only means something for skills that run on their own
+    if (fields.context !== undefined) {
+      keep.add('context');
+    }
+  }
+  const manualOnly = bool(fields['disable-model-invocation']);
+  const aiOnly = bool(fields['user-invocable']);
+  if ((fields['disable-model-invocation'] !== undefined && manualOnly === undefined) ||
+      (fields['user-invocable'] !== undefined && aiOnly === undefined) || (manualOnly && aiOnly === false)) {
+    keep.add('disable-model-invocation').add('user-invocable');
+  }
+  if (fields.maxTurns !== undefined && !/^[1-9]\d*$/.test(String(fields.maxTurns))) {
+    keep.add('maxTurns');
+  }
+  if (fields.isolation !== undefined && fields.isolation !== 'worktree') {
+    keep.add('isolation');
+  }
+  return knownKeys(kind, target).filter((k) => !keep.has(k));
+}
+
+/** The Claude Code settings in a parsed file, as block fields. Only keys in `editable` are read. */
+export function settingsFrom(kind: 'agent' | 'skill', fields: ParsedFile['fields'], editable: string[]): Partial<CanvasNode> {
+  const get = (k: string) => {
+    const v = editable.includes(k) ? fields[k] : undefined;
+    return (Array.isArray(v) ? v.join(', ') : v)?.trim() || undefined;
+  };
+  if (kind === 'agent') {
+    const turns = get('maxTurns');
+    return {
+      disallowedTools: get('disallowedTools'),
+      effort: get('effort'),
+      maxTurns: turns ? Number(turns) : undefined,
+      permissionMode: get('permissionMode'),
+      memory: get('memory'),
+      worktree: get('isolation') === 'worktree' || undefined,
+      color: get('color'),
+    };
+  }
+  return {
+    whenToUse: get('when_to_use'),
+    invocation: bool(get('disable-model-invocation')) ? 'user' : bool(get('user-invocable')) === false ? 'claude' : undefined,
+    fork: get('context') === 'fork' || undefined,
+    forkAgent: get('context') === 'fork' ? get('agent') : undefined,
+    model: get('model'),
+    effort: get('effort'),
+    paths: get('paths'),
+  };
+}
+
+/** The keys of a parsed file that the canvas doesn't edit, as written. */
+export function extraOf(raw: RawKey[], known: string[]): string | undefined {
+  return raw.filter((b) => !known.includes(b.key)).map((b) => b.text).join('\n') || undefined;
 }
 
 function unquote(v: string): string {
@@ -260,7 +581,7 @@ export function readBack(
   if (!n || (n.kind !== 'agent' && n.kind !== 'skill')) {
     return undefined;
   }
-  const { fields, body } = parseFile(text);
+  const { fields, body, raw } = parseFile(text);
   const str = (k: string) => {
     const v = fields[k];
     return Array.isArray(v) ? v.join(', ') : v?.trim() || undefined;
@@ -274,7 +595,14 @@ export function readBack(
     patch.name = name;
   }
   const description = str('description');
-  patch.description = description === `${n.name} (from the ${wfName} workflow).` ? undefined : description;
+  patch.description =
+    description === placeholder(n.name, wfName) || description === oldPlaceholder(n.name, wfName) ? undefined : description;
+  const editable = editableKeys(n.kind, target, fields);
+  patch.extra = extraOf(raw, editable);
+  // Claude Code settings stay as they are while editing the Copilot version of a file.
+  if (target === 'claude') {
+    Object.assign(patch, settingsFrom(n.kind, fields, editable));
+  }
 
   if (n.kind === 'agent') {
     const linked = model.edges.filter((e) => isUses(e) && e.from === n.id).map((e) => model.nodes.find((x) => x.id === e.to)!).filter(Boolean);
@@ -282,20 +610,32 @@ export function readBack(
     const { names } = buildExport(model, fallbackName, target);
     const linkedSkills = linked.filter((x) => x.kind === 'skill').map((x) => names[x.id]);
     const tools = arr('tools');
-    patch.tools = tools.filter((t) => !linkedTools.includes(t)).join(', ') || undefined;
+    // The Agent tool added for linked agents comes from the canvas, like linked tools.
+    const added = linked.some((x) => x.kind === 'agent') && !list(n.tools).includes('Agent') ? ['Agent'] : [];
+    patch.tools = tools.filter((t) => !linkedTools.includes(t) && !added.includes(t)).join(', ') || undefined;
     patch.toolsMode = tools.length ? 'only' : 'all';
-    patch.model = str('model');
+    patch.model = editable.includes('model') ? str('model') : undefined;
     if (target === 'claude') {
       patch.skills = arr('skills').filter((s) => !linkedSkills.includes(s)).join(', ') || undefined;
     }
-    const prompt = target === 'copilot' ? body.replace(/\n*When it helps, use these skills: [^\n]*$/, '') : body;
+    const own = target === 'copilot' ? body.replace(/\n*When it helps, use these skills: [^\n]*$/, '') : body;
+    const prompt = own.replace(HELPERS_LINE, '');
     patch.prompt = prompt && prompt !== `You are ${n.name}.` ? prompt : undefined;
   } else {
     patch.argumentHint = str('argument-hint');
     if (target === 'claude') {
       patch.tools = str('allowed-tools');
     }
-    patch.prompt = body && body !== `# ${n.name}` ? body : undefined;
+    // The list of extra files is written by the canvas; only its "when" texts are read back.
+    const refs = n.references ?? [];
+    // Paths as export writes them.
+    const pathOf = (r: SkillFile) => skillFilePath(r.path ?? '') ?? r.path;
+    const stripped = refs.length ? stripMoreDetail(body, refs.map(pathOf)) : undefined;
+    if (stripped && refs.some((r) => pathOf(r) in stripped.when && (stripped.when[pathOf(r)] ?? '') !== oneLine(r.when))) {
+      patch.references = refs.map((r) => (pathOf(r) in stripped.when ? { ...r, when: stripped.when[pathOf(r)] } : r));
+    }
+    const instructions = stripped ? stripped.body : body;
+    patch.prompt = instructions && instructions !== `# ${n.name}` ? instructions : undefined;
   }
   return patch;
 }
@@ -400,10 +740,20 @@ function workflowBody(
     }
   };
 
+  const prefix: Partial<Record<CanvasNode['kind'], string>> = { input: 'Start: ', output: 'Finish: ', tool: 'Tool: ', if: 'Decide: ', loop: 'Loop: ' };
   const lines = [`# ${wfName}`, ''];
   if (model.description?.trim()) {
     lines.push(...model.description.trim().split('\n'), '');
   }
+  // The guide's progress checklist, so no step is skipped.
+  lines.push(
+    'Copy this checklist and check off each step as you go:',
+    '',
+    '```',
+    ...order.map((n, i) => `- [ ] ${i + 1}. ${prefix[n.kind] ?? ''}${oneLine(n.name)}`),
+    '```',
+    ''
+  );
   lines.push('Follow these steps. "Go to step N" means continue from that step.', '');
   const steps: Record<string, number> = {};
   order.forEach((n, i) => {

@@ -9,17 +9,29 @@ We welcome bug reports, feature ideas, documentation improvements, and pull requ
 1. Fork the repository and clone your fork.
 2. Install dependencies:
 
-```sh
-npm install
-```
+   ```sh
+   npm install
+   ```
 
 3. Run the project checks:
 
-```sh
-npm run compile
-npm test
-npm run lint
-```
+   ```sh
+   npm run compile
+   npm test
+   npm run lint
+   npm run test:vscode
+   ```
+
+   `npm test` runs the unit tests in `test/`. `npm run test:vscode` downloads VS Code once (into `.vscode-test/`) and runs `test/vscode/` inside it. These tests cover the parts that need the editor itself, like problems in the text editor.
+
+4. Try the editor in a browser with `npm run build:site`, then open `_site/demo/index.html` through a local web server. Or press `F5` in VS Code to start an Extension Development Host.
+
+## Where things live
+
+- `src/export.ts`: turns a canvas into agent and skill files, and reads them back.
+- `src/importer.ts` and `src/importFlow.ts`: import existing agents and skills.
+- `src/lint.ts`: the best-practice checks. Each rule has a test in `test/lint.test.js`. The canvas, the export and the text editor's problems (`src/lintFile.ts`, `src/diagnostics.ts`) all use them.
+- `media/canvas.js` and `media/canvas.css`: the editor itself.
 
 ## Workflow
 

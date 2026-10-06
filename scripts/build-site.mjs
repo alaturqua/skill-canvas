@@ -34,13 +34,18 @@ for (let depth = 1; end < css.length && depth > 0; end++) {
   else if (css[end] === '}') depth--;
 }
 writeFileSync(path.join(runtime, 'compact.css'), `/* From media/canvas.css, ${COMPACT} */\n${css.slice(at + COMPACT.length, end - 1).trim()}\n`);
-const modules = { './model': read('out', 'model.js'), './export': read('out', 'export.js'), './importer': read('out', 'importer.js') };
+const modules = {
+  './model': read('out', 'model.js'),
+  './lint': read('out', 'lint.js'),
+  './export': read('out', 'export.js'),
+  './importer': read('out', 'importer.js'),
+};
 const sources = Object.entries(modules)
   .map(([name, src]) => `${JSON.stringify(name)}: function (exports, require) {\n${src}\n}`)
   .join(',\n');
 writeFileSync(
   path.join(runtime, 'export-bundle.js'),
-  `// Skill Canvas export and import code (out/model.js, out/export.js, out/importer.js), bundled for the browser.
+  `// Skill Canvas export and import code (out/model.js, out/lint.js, out/export.js, out/importer.js), bundled for the browser.
 (function () {
   const sources = {${sources}};
   const cache = {};

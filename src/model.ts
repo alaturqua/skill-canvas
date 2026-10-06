@@ -41,6 +41,58 @@ export interface CanvasNode {
   condition?: string;
   /** Loop: maximum iterations. */
   maxIterations?: number;
+  /** Agent/skill: frontmatter the canvas doesn't edit, kept as written (YAML), so nothing is lost on export. */
+  extra?: string;
+
+  // Claude Code settings. Skills: `model` and `effort` apply while the skill runs.
+  /** Skill: `when_to_use`, more about when to use it. */
+  whenToUse?: string;
+  /** Skill: who can start it. Unset is both; 'user' only by /name; 'claude' only the AI. */
+  invocation?: 'user' | 'claude';
+  /** Skill: `context: fork`, run on its own in a subagent. */
+  fork?: boolean;
+  /** Skill: `agent`, the subagent type it runs in when `fork` is set. */
+  forkAgent?: string;
+  /** Skill: `paths`, only for files matching these globs. Comma-separated. */
+  paths?: string;
+  /** Agent/skill: `effort`, e.g. low or high. */
+  effort?: string;
+  /** Agent: `maxTurns`. */
+  maxTurns?: number;
+  /** Agent: `permissionMode`. */
+  permissionMode?: string;
+  /** Agent: `memory` scope. */
+  memory?: string;
+  /** Agent: `isolation: worktree`, work in a separate copy of the repository. */
+  worktree?: boolean;
+  /** Agent: `color` in the UI. */
+  color?: string;
+  /** Agent: `disallowedTools`. Comma-separated. */
+  disallowedTools?: string;
+
+  /** Skill: extra Markdown files in its folder, read only when needed, linked from SKILL.md. */
+  references?: SkillFile[];
+  /** Skill: test scenarios, written to `evals/evals.json`. */
+  evals?: TestScenario[];
+  /** Skill: other files found in its folder on import (scripts, assets). Kept as they are. */
+  otherFiles?: string[];
+}
+
+export interface SkillFile {
+  /** Path inside the skill's folder, e.g. `reference/forms.md`. */
+  path: string;
+  /** When to read it, e.g. "Read when filling in forms." */
+  when?: string;
+  content: string;
+}
+
+export interface TestScenario {
+  /** What someone asks. */
+  query: string;
+  /** What should happen, one point per line. */
+  expected?: string;
+  /** Files the request uses, comma-separated. */
+  files?: string;
 }
 
 export interface CanvasEdge {

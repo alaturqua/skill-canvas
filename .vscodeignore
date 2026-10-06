@@ -5,6 +5,7 @@ tsconfig.json
 node_modules/**
 .github/**
 .vscode-test/**
+.vscode-test.mjs
 sandbox/**
 .impeccable/**
 .claude/**
@@ -25,4 +26,5 @@ package-lock.json
 site/**
 scripts/**
 _site/**
+.playwright-mcp/**
 !media/**

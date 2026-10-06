@@ -27,7 +27,8 @@
     const root = X.ROOTS[target].project;
     const workflow = result.files.find((f) => f.kind === 'workflow');
     const file = nodeId
-      ? result.files.find((f) => f.nodeId === nodeId) || (workflow && workflow.steps && workflow.steps[nodeId] !== undefined ? workflow : undefined)
+      ? result.files.find((f) => f.nodeId === nodeId && (f.kind === 'agent' || f.kind === 'skill')) ||
+        (workflow && workflow.steps && workflow.steps[nodeId] !== undefined ? workflow : undefined)
       : workflow || result.files[0];
     return {
       type: 'analysis',
