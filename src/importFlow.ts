@@ -12,7 +12,7 @@ interface Location {
   label: string;
 }
 
-type Found = FoundFile & { location: Location };
+type Found = FoundFile & { location: Location; dir?: vscode.Uri };
 
 /** Where agents and skills live: the project first, then the user's folders. */
 function locations(folder: vscode.WorkspaceFolder | undefined): Location[] {
@@ -45,6 +45,34 @@ async function readText(uri: vscode.Uri) {
   }
 }
 
+/** Limits for reading a skill's folder: how deep, how many files, and how big a Markdown file to read. */
+const FOLDER_DEPTH = 3;
+const FOLDER_FILES = 200;
+const TEXT_BYTES = 256 * 1024;
+
+/** The files in a skill's folder besides SKILL.md, with the text of Markdown files and test scenarios. */
+export async function skillFolder(dir: vscode.Uri): Promise<{ path: string; text?: string }[]> {
+  const out: { path: string; text?: string }[] = [];
+  const walk = async (rel: string, depth: number) => {
+    for (const [name, type] of await readDir(rel ? vscode.Uri.joinPath(dir, ...rel.split('/')) : dir)) {
+      const path = rel ? `${rel}/${name}` : name;
+      if (out.length >= FOLDER_FILES || name.startsWith('.') || name === 'node_modules' || name === '__pycache__') {
+        continue;
+      }
+      if (type === vscode.FileType.Directory && depth < FOLDER_DEPTH) {
+        await walk(path, depth + 1);
+      } else if (type === vscode.FileType.File && path !== 'SKILL.md') {
+        const uri = vscode.Uri.joinPath(dir, ...path.split('/'));
+        const readable = /\.md$/i.test(name) || path === 'evals/evals.json';
+        const small = readable && (await vscode.workspace.fs.stat(uri).then((s) => s.size <= TEXT_BYTES, () => false));
+        out.push({ path, text: small ? await readText(uri) : undefined });
+      }
+    }
+  };
+  await walk('', 1);
+  return out;
+}
+
 /** Agents (`agents/*.md`, or `*.agent.md` for Copilot) and skills (`skills/<name>/SKILL.md`). */
 async function scan(folder: vscode.WorkspaceFolder | undefined): Promise<Found[]> {
   const found: Found[] = [];
@@ -63,9 +91,10 @@ async function scan(folder: vscode.WorkspaceFolder | undefined): Promise<Found[]
       if (type !== vscode.FileType.Directory || name.startsWith('.')) {
         continue;
       }
-      const text = await readText(vscode.Uri.joinPath(location.root, 'skills', name, 'SKILL.md'));
+      const dir = vscode.Uri.joinPath(location.root, 'skills', name);
+      const text = await readText(vscode.Uri.joinPath(dir, 'SKILL.md'));
       if (text !== undefined) {
-        found.push({ path: `skills/${name}/SKILL.md`, text, kind: 'skill', target: location.target, scope: location.scope, location });
+        found.push({ path: `skills/${name}/SKILL.md`, text, kind: 'skill', target: location.target, scope: location.scope, location, dir });
       }
     }
   }
@@ -123,6 +152,12 @@ export async function pickImports(
   const files = (chosen ?? []).map((i) => i.file).filter((f): f is Found => !!f);
   if (!files.length) {
     return;
+  }
+  // Only the chosen skills' folders are read.
+  for (const f of files) {
+    if (f.dir) {
+      f.extras = await skillFolder(f.dir);
+    }
   }
   const result = importFiles(files, model.nodes, () => Math.random().toString(36).slice(2, 9));
   return { ...result, targets: files.map((f) => f.target) };

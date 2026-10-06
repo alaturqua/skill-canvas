@@ -46,6 +46,15 @@ jobs:
       - name: Test
         run: npm test
 
+      # The same tests inside a downloaded VS Code; Linux runners need a virtual display.
+      - name: Test in VS Code (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:vscode
+
+      - name: Test in VS Code
+        if: runner.os != 'Linux'
+        run: npm run test:vscode
+
       - name: Package extension
         run: npm run package -- --out skill-canvas.vsix
 

@@ -146,7 +146,8 @@ export class CanvasEditorProvider implements vscode.CustomTextEditorProvider {
     const root = ROOTS[target].project;
     const workflow = result.files.find((f) => f.kind === 'workflow');
     const file = nodeId
-      ? result.files.find((f) => f.nodeId === nodeId) ?? (workflow?.steps?.[nodeId] !== undefined ? workflow : undefined)
+      ? result.files.find((f) => f.nodeId === nodeId && (f.kind === 'agent' || f.kind === 'skill')) ??
+        (workflow?.steps?.[nodeId] !== undefined ? workflow : undefined)
       : workflow ?? result.files[0];
     return {
       type: 'analysis',
@@ -247,6 +248,8 @@ ${ICONS}
             <button type="button" data-starter="agent"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Single agent</strong><span>An agent that handles one kind of request</span></span></button>
             <button type="button" data-starter="skill"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Agent with a skill</strong><span>An agent that follows a reusable playbook</span></span></button>
             <button type="button" data-starter="retry"><svg class="glyph k-loop" aria-hidden="true"><use href="#i-loop"/></svg><span><strong>Try until it works</strong><span>Do the work, check it, and retry up to 3 times</span></span></button>
+            <button type="button" data-starter="checked"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Skill with a check</strong><span>Follow a playbook, check the result, fix and check again</span></span></button>
+            <button type="button" data-starter="reviewer"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Read-only reviewer</strong><span>An agent that can look but not change anything</span></span></button>
           </div>
           <p class="empty-import">Already have agents or skills? <button type="button" class="link-button" data-import>Import them</button></p>
         </div>
@@ -262,6 +265,7 @@ ${ICONS}
       </div>
     </section>
     <aside id="props" aria-label="Details"></aside>
+    <div id="props-resizer" role="separator" aria-orientation="vertical" aria-controls="props" aria-label="Details panel width" title="Drag to resize. Double-click to reset." tabindex="0"></div>
   </main>
   <div id="announce" class="sr-only" aria-live="polite"></div>
   <script nonce="${nonce}" src="${script}"></script>
@@ -294,6 +298,8 @@ const ICONS = `  <svg class="icon-defs" aria-hidden="true" focusable="false">
       <symbol id="i-import" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5H4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6z"/><path d="M9 2.5V6h3.5M8 8v4M6.2 10.2 8 12l1.8-1.8"/></symbol>
       <symbol id="i-arrange-lr" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="6" width="4" height="4" rx="1"/><rect x="10.5" y="6" width="4" height="4" rx="1"/><path d="M5.5 8h4.5M8.5 6.5 10 8l-1.5 1.5"/></symbol>
       <symbol id="i-arrange-td" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="1.5" width="4" height="4" rx="1"/><rect x="6" y="10.5" width="4" height="4" rx="1"/><path d="M8 5.5V10M6.5 8.5 8 10l1.5-1.5"/></symbol>
+      <symbol id="i-file" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5H4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6z"/><path d="M9 2.5V6h3.5M6 9h4M6 11h3"/></symbol>
+      <symbol id="i-tip" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12.5h4M6.5 14.5h3"/><path d="M5.6 10.5a4.5 4.5 0 1 1 4.8 0c-.3.2-.4.5-.4.8v.2H6v-.2c0-.3-.1-.6-.4-.8z"/></symbol>
       <symbol id="i-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></symbol>
     </defs>
   </svg>`;

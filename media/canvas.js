@@ -14,11 +14,11 @@
 
   // ---- Block kinds ----
   // `in`: has an input. `outs`: output ports (labels shown on branching blocks).
-  // `uses`: can link to skills/tools it may use. `usable`: can be linked from an agent.
+  // `uses`: can link to skills, tools and agents it may use. `usable`: can be linked from an agent.
   const KINDS = {
     input: { label: 'Input', group: 'ends', desc: 'What the workflow starts with', in: false, outs: [{ id: 'out' }] },
     output: { label: 'Output', group: 'ends', desc: 'What the workflow delivers', in: true, outs: [] },
-    agent: { label: 'Agent', group: 'work', desc: 'An AI assistant with its own instructions', in: true, outs: [{ id: 'out' }], uses: true },
+    agent: { label: 'Agent', group: 'work', desc: 'An AI assistant with its own instructions', in: true, outs: [{ id: 'out' }], uses: true, usable: true },
     skill: { label: 'Skill', group: 'work', desc: 'Reusable instructions, like a playbook', in: true, outs: [{ id: 'out' }], usable: true },
     tool: { label: 'Tool', group: 'work', desc: 'A specific tool, like the terminal', in: true, outs: [{ id: 'out' }], usable: true },
     if: { label: 'If', group: 'logic', desc: 'Take one of two paths', in: true, outs: [{ id: 'true', label: 'yes' }, { id: 'false', label: 'no' }] },
@@ -30,8 +30,22 @@
   const CLAUDE_TOOLS = [
     ['Read', 'Read files'], ['Grep', 'Search in files'], ['Glob', 'Find files'], ['Edit', 'Edit files'],
     ['Write', 'Create files'], ['Bash', 'Run terminal commands'], ['WebFetch', 'Open web pages'], ['WebSearch', 'Search the web'],
+    ['Agent', 'Hand work to other agents'], ['Skill', 'Use skills'], ['TodoWrite', 'Keep a to-do list'], ['NotebookEdit', 'Edit notebooks'],
   ];
   const CLAUDE_MODELS = [['inherit', 'Same as the chat'], ['sonnet', 'Sonnet'], ['opus', 'Opus'], ['haiku', 'Haiku'], ['fable', 'Fable']];
+  // Claude Code settings, with plain labels. An empty value leaves the setting out.
+  const SKILL_MODELS = [['', 'Same as the chat'], ...CLAUDE_MODELS.slice(1)];
+  const EFFORTS = [['', 'Default'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'Extra high'], ['max', 'Max']];
+  const INVOCATION = [['', 'You or the AI'], ['user', 'Only you, by typing /name'], ['claude', 'Only the AI, when it fits']];
+  const PERMISSION_MODES = [
+    ['', 'Same as the chat'], ['default', 'Ask before acting'], ['acceptEdits', 'Make file edits without asking'],
+    ['plan', 'Plan only, change nothing'], ['auto', 'Decide automatically'], ['dontAsk', 'Only use pre-approved tools'],
+    ['bypassPermissions', 'Never ask (risky)'],
+  ];
+  const MEMORY = [['', 'Nothing'], ['project', 'What it learns in this project'], ['local', 'What it learns in this project, only for me'], ['user', 'What it learns, across my projects']];
+  const COLORS = [['', 'Default'], ...['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan'].map((c) => [c, c[0].toUpperCase() + c.slice(1)])];
+  const FORK_AGENTS = [['general-purpose', 'General purpose'], ['Explore', 'Explore: reads and searches'], ['Plan', 'Plan: plans without changing files']];
+  const DESCRIPTION_MAX = 1024;
   const isMac = /Mac/.test(navigator.platform);
   const UNDO = isMac ? '⌘Z' : 'Ctrl+Z';
 
@@ -44,8 +58,14 @@
   const saved = vscode.getState() || {};
   let view = saved.view || { x: 40, y: 40, k: 1 };
   let needsFit = !saved.view;
-  const ui = { props: saved.props !== false, starters: saved.starters !== false, preview: saved.preview === 'edit' ? 'edit' : 'preview', advanced: saved.advanced || {} };
-  const persist = () => vscode.setState({ view, props: ui.props, starters: ui.starters, preview: ui.preview, advanced: ui.advanced });
+  const ui = {
+    props: saved.props !== false,
+    starters: saved.starters !== false,
+    preview: saved.preview === 'edit' ? 'edit' : 'preview',
+    advanced: saved.advanced || {},
+    propsWidth: typeof saved.propsWidth === 'number' ? saved.propsWidth : null, // null: the default width
+  };
+  const persist = () => vscode.setState({ view, props: ui.props, starters: ui.starters, preview: ui.preview, advanced: ui.advanced, propsWidth: ui.propsWidth });
 
   const $ = (id) => document.getElementById(id);
   const svg = $('canvas');
@@ -289,9 +309,13 @@
     return td() ? { x: n.x + o.x - 5, y: n.y + o.y } : { x: n.x + o.x, y: n.y + o.y - 5 };
   };
 
+  // Things to fix; tips (best-practice advice) are shown but not counted as problems.
+  const isTip = (w) => w.level === 'tip';
+  const fixes = () => ((analysis && analysis.warnings) || []).filter((w) => !isTip(w));
+  const tips = () => ((analysis && analysis.warnings) || []).filter(isTip);
   function warningCounts() {
     const counts = {};
-    for (const w of (analysis && analysis.warnings) || []) if (w.nodeId) counts[w.nodeId] = (counts[w.nodeId] || 0) + 1;
+    for (const w of fixes()) if (w.nodeId) counts[w.nodeId] = (counts[w.nodeId] || 0) + 1;
     return counts;
   }
 
@@ -661,6 +685,8 @@
     if (!ui.props) toggleProps(true);
     const f = props.querySelector(`[data-field="${key}"]`);
     if (f) {
+      const closed = f.closest('details:not([open])');
+      if (closed) closed.open = true;
       f.focus();
       if (f.select) f.select();
     }
@@ -699,7 +725,8 @@
   }
 
   function duplicate(n) {
-    const copy = { ...n, id: uid(), name: `${n.name} copy`, x: n.x + 24, y: n.y + H + 24 };
+    // A deep copy, so the two blocks' extra files and test scenarios are edited separately.
+    const copy = { ...JSON.parse(JSON.stringify(n)), id: uid(), name: `${n.name} copy`, x: n.x + 24, y: n.y + H + 24 };
     model.nodes.push(copy);
     select({ type: 'node', id: copy.id });
     reveal(copy.id);
@@ -759,6 +786,23 @@
       { key: 'o', kind: 'output', name: 'Result', x: 864, y: 0 },
       { key: 'x', kind: 'output', name: 'Ask for help', x: 432, y: 160 },
       ['i', 'l'], ['l', 'a', 'body'], ['a', 'c'], ['c', 'o', 'true'], ['c', 'l', 'false'], ['l', 'x', 'done'],
+    ],
+    // The guide's feedback loop: do the work with a skill, check it, fix and check again.
+    checked: () => [
+      { key: 'i', kind: 'input', name: 'Request', x: 0, y: 48 },
+      { key: 'l', kind: 'loop', name: 'Up to 3 checks', x: 216, y: 48, maxIterations: 3 },
+      { key: 's', kind: 'skill', name: 'Do the task', x: 432, y: 0, focus: true },
+      { key: 'c', kind: 'if', name: 'Passes the checks?', x: 648, y: 0, condition: 'The result passes every check in the skill' },
+      { key: 'o', kind: 'output', name: 'Result', x: 864, y: 0 },
+      { key: 'x', kind: 'output', name: 'Report what still fails', x: 432, y: 160 },
+      ['i', 'l'], ['l', 's', 'body'], ['s', 'c'], ['c', 'o', 'true'], ['c', 'l', 'false'], ['l', 'x', 'done'],
+    ],
+    // A reviewer that can only read: the fewest tools it needs, and a turn limit.
+    reviewer: () => [
+      { key: 'i', kind: 'input', name: 'Changes to review', x: 0, y: 0 },
+      { key: 'a', kind: 'agent', name: 'Reviewer', x: 240, y: 0, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob', model: 'sonnet', maxTurns: 20 },
+      { key: 'o', kind: 'output', name: 'Review', x: 480, y: 0 },
+      ['i', 'a'], ['a', 'o'],
     ],
   };
   function startWith(key) {
@@ -1094,17 +1138,20 @@
       b.setAttribute('aria-checked', String(on));
       b.tabIndex = on ? 0 : -1;
     }
-    const count = analysis ? analysis.warnings.length : 0;
+    const count = fixes().length;
+    const tipCount = tips().length;
     const issues = $('issues');
     const exportable = !!analysis && analysis.files.length > 0;
-    const label = !model.nodes.length ? '' : count ? `${count} to fix` : exportable ? 'Ready' : '';
+    const label = !model.nodes.length ? '' : count ? `${count} to fix` : exportable ? (tipCount ? `Ready · ${plural(tipCount, 'tip', 'tips')}` : 'Ready') : '';
     if (issues.dataset.label !== label) {
       issues.dataset.label = label;
       issues.replaceChildren(...(label ? [icon(count ? 'warning' : 'check', `icon ${count ? 'warn' : 'ok'}`), h('span', { text: label })] : []));
     }
     issues.hidden = !label;
-    issues.disabled = !count;
-    issues.setAttribute('aria-label', count ? `${plural(count, 'thing', 'things')} to fix. Show the list.` : 'Ready to export');
+    issues.disabled = !count && !tipCount;
+    issues.setAttribute('aria-label', count
+      ? `${plural(count, 'thing', 'things')} to fix${tipCount ? ` and ${plural(tipCount, 'tip', 'tips')}` : ''}. Show the list.`
+      : tipCount ? `Ready to export. ${plural(tipCount, 'tip', 'tips')} to make it better. Show the list.` : 'Ready to export');
     const exportBtn = $('export');
     exportBtn.disabled = !model.nodes.length || (!!analysis && !exportable);
     exportBtn.title = exportBtn.disabled ? 'Add an Agent or Skill block to export' : 'Save the agents and skills as files';
@@ -1115,10 +1162,12 @@
   function openIssues() {
     if (!analysis || !analysis.warnings.length) return;
     const listEl = $('issues-list');
-    listEl.replaceChildren(...analysis.warnings.map((w) =>
-      h('button', { type: 'button', class: 'issue', onclick: () => { closeIssues(); goToWarning(w); } },
-        icon('warning', 'icon warn'),
-        h('span', { class: 'issue-text' }, h('strong', { text: w.nodeId ? nameOf(w.nodeId) : 'Workflow' }), h('span', { text: w.text })))));
+    const item = (w) => h('button', { type: 'button', class: `issue${isTip(w) ? ' tip' : ''}`, onclick: () => { closeIssues(); goToWarning(w); } },
+      icon(isTip(w) ? 'tip' : 'warning', `icon ${isTip(w) ? 'tip' : 'warn'}`),
+      h('span', { class: 'issue-text' }, h('strong', { text: `${w.nodeId ? nameOf(w.nodeId) : 'Workflow'}${isTip(w) ? ' · tip' : ''}` }), h('span', { text: w.text })));
+    const t = tips();
+    listEl.replaceChildren(...fixes().map(item),
+      ...(t.length ? [h('p', { class: 'issues-heading', text: 'Tips from the skill authoring best practices' }), ...t.map(item)] : []));
     listEl.hidden = false;
     $('issues').setAttribute('aria-expanded', 'true');
     listEl.querySelector('button').focus();
@@ -1153,6 +1202,57 @@
   }
   $('toggle-props').addEventListener('click', () => toggleProps());
 
+  // ---- Details panel width: drag its left edge, or focus the edge and use the arrow keys ----
+  const PROPS_MIN = 280;
+  const PROPS_STEP = 16;
+  const resizer = $('props-resizer');
+  // Always leave the canvas room to work in.
+  const propsMax = () => Math.max(PROPS_MIN, Math.min(960, window.innerWidth - 360));
+  function setPropsWidth(w, keep = true) {
+    const root = document.documentElement.style;
+    if (w === null) {
+      root.removeProperty('--props-w');
+      ui.propsWidth = null;
+    } else {
+      ui.propsWidth = Math.round(clamp(w, PROPS_MIN, propsMax()));
+      root.setProperty('--props-w', `${ui.propsWidth}px`);
+    }
+    resizer.setAttribute('aria-valuemin', String(PROPS_MIN));
+    resizer.setAttribute('aria-valuemax', String(propsMax()));
+    resizer.setAttribute('aria-valuenow', String(Math.round(props.getBoundingClientRect().width) || ui.propsWidth || PROPS_MIN));
+    if (keep) persist();
+  }
+  resizer.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    resizer.setPointerCapture(e.pointerId);
+    document.body.classList.add('resizing');
+    const right = $('workspace').getBoundingClientRect().right;
+    const move = (ev) => setPropsWidth(right - ev.clientX, false);
+    const up = () => {
+      resizer.removeEventListener('pointermove', move);
+      resizer.removeEventListener('pointerup', up);
+      resizer.removeEventListener('pointercancel', up);
+      document.body.classList.remove('resizing');
+      persist();
+    };
+    resizer.addEventListener('pointermove', move);
+    resizer.addEventListener('pointerup', up);
+    resizer.addEventListener('pointercancel', up);
+  });
+  resizer.addEventListener('keydown', (e) => {
+    const now = props.getBoundingClientRect().width;
+    const step = e.shiftKey ? PROPS_STEP * 4 : PROPS_STEP;
+    // The panel is on the right, so moving its edge left makes it wider.
+    const to = { ArrowLeft: now + step, ArrowRight: now - step, Home: PROPS_MIN, End: propsMax() }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setPropsWidth(to);
+  });
+  resizer.addEventListener('dblclick', () => setPropsWidth(null));
+  window.addEventListener('resize', () => ui.propsWidth !== null && setPropsWidth(ui.propsWidth, false));
+  setPropsWidth(ui.propsWidth, false);
+
   // ---- Details panel ----
   // The panel is the form (`.panel-main`) plus the file preview below it.
   function renderPanel() {
@@ -1183,32 +1283,45 @@
 
   function field(obj, spec) {
     const id = `f-${spec.key}`;
+    if (spec.type === 'checkbox') return checkField(obj, spec, id);
     let input;
+    const max = spec.max || 50;
     if (spec.type === 'textarea') {
       input = h('textarea', { id, rows: spec.rows || 3 });
     } else if (spec.type === 'select') {
-      input = h('select', { id }, spec.options.map(([v, t]) => h('option', { value: v, text: t })));
+      // A value set in the file but not in the list (e.g. a full model ID) is shown as it is.
+      const options = obj[spec.key] && !spec.options.some(([v]) => v === obj[spec.key]) ? [...spec.options, [obj[spec.key], obj[spec.key]]] : spec.options;
+      input = h('select', { id }, options.map(([v, t]) => h('option', { value: v, text: t })));
     } else {
       input = h('input', { id, type: spec.type === 'number' ? 'number' : 'text', spellcheck: false, autocomplete: 'off' });
       if (spec.type === 'number') {
         input.min = '1';
-        input.max = '50';
+        input.max = String(max);
       }
     }
     input.dataset.field = spec.key;
     if (spec.placeholder) input.placeholder = spec.placeholder;
     input.value = obj[spec.key] ?? (spec.type === 'select' ? spec.options[0][0] : '');
-    input.setAttribute('aria-describedby', [spec.hint && `${id}-hint`, `${id}-warn`].filter(Boolean).join(' '));
+    input.setAttribute('aria-describedby', [spec.hint && `${id}-hint`, spec.counter && `${id}-count`, `${id}-warn`].filter(Boolean).join(' '));
+    const counter = spec.counter ? h('small', { class: 'counter', id: `${id}-count` }) : null;
+    const count = () => {
+      if (!counter) return;
+      const n = input.value.trim().length;
+      counter.textContent = `${n.toLocaleString('en-US')} / ${spec.counter.toLocaleString('en-US')} characters`;
+      counter.classList.toggle('over', n > spec.counter);
+    };
+    count();
     input.addEventListener('input', () => {
       const v = input.value;
       if (spec.key === 'name' && obj !== model) obj.name = v; // blocks keep a name, even while it's being retyped
       else if (v.trim() === '') delete obj[spec.key];
-      else obj[spec.key] = spec.type === 'number' ? clamp(Math.round(Number(v)) || 1, 1, 50) : v;
+      else obj[spec.key] = spec.type === 'number' ? clamp(Math.round(Number(v)) || 1, 1, max) : v;
       if (spec.key === 'name' && obj !== model) {
         render();
         const title = props.querySelector('.props-head h2');
         if (title) title.textContent = v || kindOf(obj).label;
       }
+      count();
       saveSoon();
     });
     input.addEventListener('blur', flush);
@@ -1221,16 +1334,38 @@
       h('label', { class: 'label', for: id, text: spec.label }),
       spec.suffix ? h('div', { class: 'with-suffix' }, input, h('span', { text: spec.suffix })) : input,
       dl,
+      counter,
       spec.hint && h('small', { class: 'hint', id: `${id}-hint`, text: spec.hint }),
       warnSlot(spec.key, `${id}-warn`));
   }
 
-  const warnSlot = (key, id) => h('div', { class: 'field-warning', id: id || `w-${key}`, 'data-warn-for': key, hidden: true });
+  // A yes/no setting. `rerender` rebuilds the form, for settings that show or hide others.
+  function checkField(obj, spec, id) {
+    const input = h('input', { id, type: 'checkbox', checked: !!obj[spec.key] });
+    input.dataset.field = spec.key;
+    if (spec.hint) input.setAttribute('aria-describedby', `${id}-hint ${id}-warn`);
+    input.addEventListener('change', () => {
+      if (input.checked) obj[spec.key] = true;
+      else delete obj[spec.key];
+      save();
+      if (spec.rerender) {
+        refreshFields();
+        const again = props.querySelector(`[data-field="${spec.key}"]`);
+        if (again) again.focus();
+      }
+    });
+    return h('div', { class: 'field' },
+      h('label', { class: 'check' }, input, h('span', { text: spec.label })),
+      spec.hint && h('small', { class: 'hint', id: `${id}-hint`, text: spec.hint }),
+      warnSlot(spec.key, `${id}-warn`));
+  }
+
+  const warnSlot = (key, id) => h('div', { class: 'field-notes', id: id || `w-${key}`, 'data-warn-for': key, hidden: true });
 
   function advanced(obj, key, specs) {
     const d = h('details', { class: 'advanced', open: !!ui.advanced[key] },
-      h('summary', {}, icon('chevron'), 'Advanced'),
-      specs.map((s) => field(obj, s)));
+      h('summary', {}, icon('chevron'), 'Advanced', h('span', { class: 'summary-count' })),
+      specs.filter(Boolean).map((s) => (typeof s === 'function' ? s() : field(obj, s))));
     d.addEventListener('toggle', () => {
       ui.advanced[key] = d.open;
       persist();
@@ -1275,7 +1410,7 @@
         other.addEventListener('blur', flush);
         box.append(h('div', { class: 'checks' }, CLAUDE_TOOLS.map(([id, label]) =>
           h('label', {}, h('input', { type: 'checkbox', checked: chosen.has(id), onchange: (e) => { e.target.checked ? chosen.add(id) : chosen.delete(id); update(); } }), h('span', { text: label })))));
-        box.append(h('label', { class: 'hint', for: 'f-tools', text: 'Other tools, comma-separated' }), other);
+        box.append(h('label', { class: 'hint', for: 'f-tools', text: "Other tools, comma-separated. MCP tools look like mcp__server__tool; mcp__server__* allows all of a server's tools." }), other);
       } else {
         const input = h('input', { type: 'text', id: 'f-tools', spellcheck: false, placeholder: 'e.g. search/codebase, web/fetch' });
         input.dataset.field = 'tools';
@@ -1315,6 +1450,131 @@
     return box;
   }
 
+  /** Agents on the canvas, by the name they're exported as, for "Kind of agent". */
+  function agentNames() {
+    return model.nodes.filter((x) => x.kind === 'agent').map((x) => [(analysis && analysis.names[x.id]) || x.name, x.name]);
+  }
+
+  // A text input or textarea bound to one property of an item in a list (an extra file, a test scenario).
+  function itemInput(obj, key, attrs) {
+    const input = h(attrs.rows ? 'textarea' : 'input', { spellcheck: false, autocomplete: 'off', ...(attrs.rows ? {} : { type: 'text' }), ...attrs });
+    input.value = obj[key] || '';
+    input.addEventListener('input', () => {
+      if (input.value.trim()) obj[key] = input.value;
+      else delete obj[key];
+      saveSoon();
+    });
+    input.addEventListener('blur', flush);
+    return input;
+  }
+
+  // A list of items with an add button; the button carries the field key so warnings can focus it.
+  function itemList(n, key, { legend, add, hint, empty, render: one }) {
+    const items = n[key] || [];
+    const box = h('fieldset', { class: 'field' }, h('legend', { class: 'label', text: legend }));
+    const removeAt = (i) => {
+      items.splice(i, 1);
+      if (!items.length) delete n[key];
+      save();
+      refreshFields();
+      const again = props.querySelector(`[data-field="${key}"]`);
+      if (again) again.focus();
+    };
+    if (items.length) box.append(h('ol', { class: 'items' }, items.map((item, i) => h('li', {}, ...one(item, i, () => removeAt(i))))));
+    const addBtn = h('button', { type: 'button', class: 'secondary add', onclick: () => {
+      n[key] = [...items, empty(items)];
+      save();
+      refreshFields();
+      const added = props.querySelectorAll(`[data-item="${key}"]`);
+      if (added.length) added[added.length - 1].focus();
+    } }, icon('plus'), add);
+    addBtn.dataset.field = key;
+    box.append(addBtn, h('small', { class: 'hint', text: hint }), warnSlot(key));
+    return box;
+  }
+
+  const removeButton = (label, onclick) => h('button', { type: 'button', class: 'icon-button', title: label, 'aria-label': label, onclick }, icon('close'));
+
+  // Extra files: details the AI only reads when needed, linked from SKILL.md.
+  function referencesSection(n) {
+    const unique = (items, base) => {
+      let path = `reference/${base}.md`;
+      for (let i = 2; items.some((r) => r.path === path); i++) path = `reference/${base}-${i}.md`;
+      return path;
+    };
+    return itemList(n, 'references', {
+      legend: 'Extra files',
+      add: 'Add an extra file',
+      hint: 'For details the AI only needs sometimes, like a long reference or examples. Each file is linked from the instructions, so the main file stays short.',
+      empty: (items) => ({ path: unique(items, 'notes'), content: '' }),
+      render: (r, i, remove) => {
+        const name = itemInput(r, 'path', { 'aria-label': `Extra file ${i + 1}: file name`, placeholder: 'reference/forms.md', 'data-item': 'references' });
+        // Typing "forms" saves as reference/forms.md.
+        name.addEventListener('change', () => {
+          let p = name.value.trim().replace(/\\/g, '/');
+          if (p && !p.includes('/')) p = `reference/${p}`;
+          if (p && !/\.[a-z0-9]+$/i.test(p)) p += '.md';
+          name.value = p;
+          if (p) r.path = p;
+          save();
+        });
+        return [
+          h('div', { class: 'item-head' }, name, removeButton(`Remove ${r.path || 'this file'}`, remove)),
+          itemInput(r, 'when', { 'aria-label': `When to read ${r.path || 'it'}`, placeholder: 'When to read it, e.g. Read when filling in forms.' }),
+          itemInput(r, 'content', { rows: 5, 'aria-label': `Contents of ${r.path || 'the file'}`, placeholder: 'The details, in Markdown. Over 100 lines? Start with a short Contents list.' }),
+        ];
+      },
+    });
+  }
+
+  // Test scenarios in the guide's evaluation format: a request and what should happen.
+  function evalsSection(n) {
+    return itemList(n, 'evals', {
+      legend: 'Test scenarios',
+      add: 'Add a test scenario',
+      hint: 'Write at least 3 real requests and what a good result does, then try them in chat. Saved as evals/evals.json in the skill\'s folder.',
+      empty: () => ({ query: '' }),
+      render: (e, i, remove) => [
+        h('div', { class: 'item-head' },
+          itemInput(e, 'query', { 'aria-label': `Test scenario ${i + 1}: what someone asks`, placeholder: 'What someone asks, e.g. Write release notes for PR 42', 'data-item': 'evals' }),
+          removeButton(`Remove test scenario ${i + 1}`, remove)),
+        itemInput(e, 'expected', { rows: 3, 'aria-label': `Test scenario ${i + 1}: what should happen`, placeholder: 'What should happen, one point per line' }),
+        itemInput(e, 'files', { 'aria-label': `Test scenario ${i + 1}: files it uses`, placeholder: 'Files it uses, comma-separated (optional)' }),
+      ],
+    });
+  }
+
+  // Files found in the skill's folder on import that the canvas doesn't edit.
+  function otherFilesSection(n) {
+    if (!n.otherFiles || !n.otherFiles.length) return null;
+    return h('fieldset', { class: 'field' }, h('legend', { class: 'label', text: 'Other files in its folder' }),
+      h('ul', { class: 'linked' }, n.otherFiles.map((p) => h('li', {}, icon('file', 'glyph k-skill'), h('span', { class: 'mono', text: p })))),
+      h('small', { class: 'hint', text: 'Kept as they are. Say in the instructions when to use them, e.g. "Run scripts/check.py".' }));
+  }
+
+  // Agents this agent can hand work to: a supervisor and its helpers.
+  function agentsSection(n) {
+    const links = linkedTo(n, 'agent');
+    const free = model.nodes.filter((x) => x.kind === 'agent' && x.id !== n.id && !links.some((e) => e.to === x.id));
+    const box = h('fieldset', { class: 'field' }, h('legend', { class: 'label', text: 'Agents it can hand work to' }));
+    if (links.length) {
+      box.append(h('ul', { class: 'linked' }, links.map((e) => h('li', {},
+        icon('agent', 'glyph k-agent'), h('span', { text: nameOf(e.to) }),
+        h('button', { type: 'button', class: 'icon-button', title: 'Unlink', 'aria-label': `Unlink ${nameOf(e.to)}`, onclick: () => removeEdge(e.id) }, icon('close'))))));
+    }
+    if (free.length) {
+      box.append(h('select', {
+        'aria-label': 'Link an agent',
+        onchange: (ev) => ev.target.value && addEdge({ id: uid(), kind: 'uses', from: n.id, to: ev.target.value }),
+      }, h('option', { value: '', text: 'Link an agent…' }), free.map((a) => h('option', { value: a.id, text: a.name }))));
+    }
+    const how = links.length
+      ? `It's told their names${target() === 'claude' ? ' and gets the Agent tool' : ''}, and decides when to use them. Each one still works on its own.`
+      : 'Optional. Link agents that this one can pass parts of the work to, like a lead with helpers.';
+    box.append(h('small', { class: 'hint', text: how }));
+    return box;
+  }
+
   function usedBySection(n) {
     const links = model.edges.filter((e) => isUses(e) && e.to === n.id && byId(e.from));
     const box = h('fieldset', { class: 'field' }, h('legend', { class: 'label', text: 'Used by' }));
@@ -1323,7 +1583,9 @@
         icon('agent', 'glyph k-agent'), h('span', { text: nameOf(e.from) }),
         h('button', { type: 'button', class: 'icon-button', title: 'Unlink', 'aria-label': `Unlink from ${nameOf(e.from)}`, onclick: () => removeEdge(e.id) }, icon('close'))))));
     }
-    const what = n.kind === 'tool' ? 'A linked tool is allowed for that agent instead of being a step.' : 'A linked skill is part of that agent instead of being a step.';
+    const what = n.kind === 'tool'
+      ? 'A linked tool is allowed for that agent instead of being a step.'
+      : n.kind === 'agent' ? 'That agent can hand work to this one, so it isn\'t a step of its own.' : 'A linked skill is part of that agent instead of being a step.';
     box.append(h('small', { class: 'hint', text: links.length ? what : 'No agent uses it yet. Drag from the handle under an agent to this block to link them.' }));
     return box;
   }
@@ -1373,20 +1635,39 @@
           { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'How the agent should work, in your own words.', placeholder: 'e.g. Reproduce the bug first. Keep changes small.' },
           () => toolsSection(n),
           () => skillsSection(n),
+          () => agentsSection(n),
+          () => (model.edges.some((e) => isUses(e) && e.to === n.id) ? usedBySection(n) : null),
           () => advanced(n, 'agent', claude
-            ? [{ key: 'model', label: 'Model', type: 'select', options: CLAUDE_MODELS },
-              { key: 'skills', label: 'Other skills to load', hint: 'Names of skills installed elsewhere, comma-separated.' }]
+            ? [{ key: 'model', label: 'Model', type: 'select', options: CLAUDE_MODELS, hint: 'Try it with each model you plan to use: Haiku may need more detail than Opus.' },
+              { key: 'effort', label: 'Effort', type: 'select', options: EFFORTS },
+              { key: 'skills', label: 'Other skills to load', hint: 'Names of skills installed elsewhere, comma-separated.' },
+              { key: 'maxTurns', label: 'Stop after', type: 'number', suffix: 'turns', max: 500, hint: 'Optional. A limit on how long it works before handing back.' },
+              { key: 'permissionMode', label: 'Permissions', type: 'select', options: PERMISSION_MODES },
+              { key: 'disallowedTools', label: 'Tools it may never use', hint: 'Comma-separated, e.g. Write, Edit.' },
+              { key: 'memory', label: 'Remember', type: 'select', options: MEMORY, hint: 'Lets it keep notes between runs.' },
+              { key: 'worktree', label: 'Work in a separate copy of the repository', type: 'checkbox', hint: 'Its changes stay apart until you merge them.' },
+              { key: 'color', label: 'Color', type: 'select', options: COLORS }]
             : [{ key: 'model', label: 'Model', hint: 'A Copilot model name, as shown in its model picker. Leave empty to use the current one.' }]),
         ];
       case 'skill':
         return [
           NAME,
-          { key: 'description', label: "What it's for", type: 'textarea', rows: 2, hint: 'The AI reads this to decide when to use this skill.', placeholder: 'e.g. Writes release notes from a list of changes' },
-          { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'The steps or rules to follow whenever this skill is used.' },
+          { key: 'description', label: "What it's for", type: 'textarea', rows: 2, counter: DESCRIPTION_MAX, hint: 'The AI reads this to decide when to use this skill. Say what it does and when to use it.', placeholder: 'e.g. Writes release notes from a list of changes. Use when the user asks for release notes.' },
+          { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'The steps or rules to follow whenever this skill is used. Keep them short: the AI already knows the basics.' },
+          () => referencesSection(n),
+          () => evalsSection(n),
+          () => otherFilesSection(n),
           () => usedBySection(n),
           () => advanced(n, 'skill', [
             { key: 'argumentHint', label: 'Input hint', hint: 'Shown when someone runs it as /name, e.g. [issue number].' },
-            ...(claude ? [{ key: 'tools', label: 'Tools it may use without asking', hint: 'Comma-separated, e.g. Read, Bash(git:*).' }] : []),
+            claude && { key: 'whenToUse', label: 'More about when to use it', type: 'textarea', rows: 2, hint: 'Added to "What it\'s for" in Claude Code, e.g. phrases people use.' },
+            claude && { key: 'invocation', label: 'Who can start it', type: 'select', options: INVOCATION },
+            claude && { key: 'tools', label: 'Tools it may use without asking', hint: 'Comma-separated, e.g. Read, Bash(git:*).' },
+            claude && { key: 'fork', label: 'Run on its own, as a separate agent', type: 'checkbox', rerender: true, hint: 'It works without the chat so far and hands back a result.' },
+            claude && n.fork && { key: 'forkAgent', label: 'Kind of agent', list: [...FORK_AGENTS, ...agentNames()], placeholder: 'general-purpose', hint: 'Pick from the list, or name an agent of your own.' },
+            claude && { key: 'model', label: 'Model', type: 'select', options: SKILL_MODELS },
+            claude && { key: 'effort', label: 'Effort', type: 'select', options: EFFORTS },
+            claude && { key: 'paths', label: 'Only for files matching', hint: 'Comma-separated, e.g. src/**/*.ts. Then it\'s only picked automatically for those files.' },
           ]),
         ];
       case 'tool':
@@ -1416,7 +1697,10 @@
     const k = kindOf(n);
     into.append(head(n.kind, n.name || k.label, k.label));
     const body = h('div', { class: 'props-body' }, h('div', { class: 'general-warnings', hidden: true }));
-    for (const spec of fieldsFor(n)) body.append(typeof spec === 'function' ? spec() : field(n, spec));
+    for (const spec of fieldsFor(n)) {
+      const part = typeof spec === 'function' ? spec() : field(n, spec);
+      if (part) body.append(part);
+    }
     if (k.outs.length) body.append(nextSection(n));
     into.append(body);
     into.append(h('div', { class: 'props-foot' },
@@ -1442,7 +1726,7 @@
     into.append(head('logic', 'Workflow'));
     into.append(h('div', { class: 'props-body' },
       field(model, {
-        key: 'description', label: 'When to run it', type: 'textarea', rows: 3,
+        key: 'description', label: 'When to run it', type: 'textarea', rows: 3, counter: DESCRIPTION_MAX,
         hint: cmd ? `The AI reads this to decide when to run ${cmd}. You can also type ${cmd} in chat yourself.` : 'Becomes a /command once two or more steps are connected.',
       }),
       advanced(model, 'workflow', [{ key: 'argumentHint', label: 'Input hint', hint: 'Shown when someone types the command, e.g. [bug description].' }]),
@@ -1632,6 +1916,13 @@
     });
   }
 
+  // Extra files and test scenarios are part of a skill, so they share its color.
+  function fileIcon(kind) {
+    if (kind === 'workflow') return icon('workflow', 'glyph k-logic');
+    if (kind === 'reference' || kind === 'evals') return icon('file', 'glyph k-skill');
+    return icon(kind, `glyph k-${kind}`);
+  }
+
   function showAnalysis() {
     if (!analysis) return;
     const nodeId = selNode() ? sel.id : null;
@@ -1639,20 +1930,29 @@
       slot.hidden = true;
       slot.replaceChildren();
     }
+    const note = (w) => h('p', { class: `field-warning${isTip(w) ? ' tip' : ''}` }, icon(isTip(w) ? 'tip' : 'warning'), h('span', { text: w.text }));
     const general = [];
     if (analysis.nodeId === nodeId) {
-      for (const w of analysis.warnings.filter((x) => (nodeId ? x.nodeId === nodeId : !x.nodeId))) {
+      // Things to fix first, then tips.
+      const mine = analysis.warnings.filter((x) => (nodeId ? x.nodeId === nodeId : !x.nodeId));
+      for (const w of [...mine.filter((x) => !isTip(x)), ...mine.filter(isTip)]) {
         const slot = w.field && props.querySelector(`[data-warn-for="${w.field}"]`);
         if (slot) {
           slot.hidden = false;
-          slot.append(icon('warning'), h('span', { text: w.text }));
+          slot.append(note(w));
         } else general.push(w);
       }
     }
+    // A closed Advanced section says how many notes are inside it.
+    for (const d of props.querySelectorAll('details.advanced')) {
+      const inside = [...d.querySelectorAll('[data-warn-for]')].reduce((s, slot) => s + slot.childElementCount, 0);
+      d.querySelector('.summary-count').textContent = inside ? ` · ${plural(inside, 'note', 'notes')}` : '';
+    }
     const box = props.querySelector('.general-warnings');
     if (box) {
-      box.replaceChildren(...general.map((w) => h('p', { class: 'field-warning' }, icon('warning'), h('span', { text: w.text }))));
+      box.replaceChildren(...general.map(note));
       box.hidden = !general.length;
+      box.classList.toggle('only-tips', general.every(isTip));
     }
     const files = props.querySelector('.files');
     if (files) {
@@ -1662,7 +1962,7 @@
           select({ type: 'node', id: f.nodeId });
           reveal(f.nodeId);
         },
-      }, icon(f.kind === 'workflow' ? 'workflow' : f.kind, `glyph k-${f.kind === 'workflow' ? 'logic' : f.kind}`), h('span', { text: f.path })))));
+      }, fileIcon(f.kind), h('span', { text: f.path })))));
       if (!analysis.files.length) files.append(h('li', { class: 'hint', text: 'None yet. Add an Agent or Skill block.' }));
     }
     fillPreview();

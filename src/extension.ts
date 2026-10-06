@@ -2,7 +2,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { CanvasEditorProvider } from './canvasEditor';
-import { buildExport, ROOTS } from './export';
+import { registerDiagnostics } from './diagnostics';
+import { buildExport, foldersToTidy, ROOTS } from './export';
 import { emptyModel, readModel, Scope } from './model';
 
 export function activate(context: vscode.ExtensionContext) {
@@ -44,6 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('skillCanvas.export', (uri?: vscode.Uri) => exportCanvas(log, uri)),
     vscode.commands.registerCommand('skillCanvas.import', (uri?: vscode.Uri) => provider.importInto(uri ?? activeCanvasUri()))
   );
+  registerDiagnostics(context, log);
 }
 
 function activeCanvasUri(): vscode.Uri | undefined {
@@ -71,6 +73,22 @@ async function exists(uri: vscode.Uri) {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * After files were removed from a skill's folder, removes the folders they leave empty,
+ * deepest first. A folder that still has something in it stays.
+ */
+export async function removeEmptyFolders(root: vscode.Uri, removed: string[]) {
+  const folders = [...new Set(removed.flatMap((p) => foldersToTidy(p)))].sort((a, b) => b.split('/').length - a.split('/').length);
+  for (const f of folders) {
+    const dir = vscode.Uri.joinPath(root, ...f.split('/'));
+    const left = await vscode.workspace.fs.readDirectory(dir).then((d) => d.length, () => -1);
+    // Empty, so nothing goes to the trash; not recursive, so a file added meanwhile stops it.
+    if (left === 0) {
+      await vscode.workspace.fs.delete(dir, { recursive: false, useTrash: false });
+    }
   }
 }
 
@@ -148,9 +166,13 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
       items.push({ label: `$(trash) Remove ${p}`, description: 'from your last export, no longer on the canvas', picked: true, remove: p });
     }
   }
-  const todo = warnings.length
-    ? `${plural(warnings.length, 'thing', 'things')} still to fix on the canvas. Press Enter to export anyway, or Escape to go back.`
-    : 'Everything checked will be saved. Press Enter to export.';
+  const toFix = warnings.filter((w) => w.level !== 'tip').length;
+  const tips = warnings.length - toFix;
+  const todo = toFix
+    ? `${plural(toFix, 'thing', 'things')} still to fix on the canvas. Press Enter to export anyway, or Escape to go back.`
+    : tips
+      ? `Everything checked will be saved. Press Enter to export (${plural(tips, 'tip', 'tips')} on the canvas can make it better).`
+      : 'Everything checked will be saved. Press Enter to export.';
   const chosen = await vscode.window.showQuickPick(items, {
     canPickMany: true,
     ignoreFocusOut: true,
@@ -186,21 +208,22 @@ async function exportCanvas(log: vscode.LogOutputChannel, uri = activeCanvasUri(
         await vscode.workspace.fs.delete(file, { useTrash: true });
         log.info(`Moved to trash: ${file.fsPath}`);
         removed.push(item.remove);
-        // A skill's folder goes too, unless something else was added to it.
-        if (item.remove.startsWith('skills/')) {
-          const dir = vscode.Uri.joinPath(file, '..');
-          if (!(await vscode.workspace.fs.readDirectory(dir)).length) {
-            await vscode.workspace.fs.delete(dir, { useTrash: true });
-          }
-        }
       }
     }
+    await removeEmptyFolders(where.root, removed);
   } catch (e) {
     failure = e instanceof Error ? e.message : String(e);
     log.error(`Export stopped: ${failure}`);
   }
   const names = new Map(model.nodes.map((n) => [n.id, n.name]));
-  warnings.forEach((w) => log.warn(w.nodeId ? `${names.get(w.nodeId)}: ${w.text}` : w.text));
+  for (const w of warnings) {
+    const text = w.nodeId ? `${names.get(w.nodeId)}: ${w.text}` : w.text;
+    if (w.level === 'tip') {
+      log.info(`Tip: ${text}`);
+    } else {
+      log.warn(text);
+    }
+  }
 
   // 4. Remember what this canvas owns there, so the next export can update or clean it up.
   // Leftovers you chose to keep stay on the list, so they're offered for removal again.

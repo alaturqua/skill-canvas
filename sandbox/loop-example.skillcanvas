@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Fix a reported bug, retrying up to three times until the tests pass.",
+  "description": "Fixes a reported bug, retrying up to three times until the tests pass. Use when the user reports a bug.",
   "lastExport": {
     "target": "claude",
     "scope": "project",
@@ -68,8 +68,29 @@
       "name": "Write PR notes",
       "x": 720,
       "y": 208,
-      "description": "Writes a short pull request summary from the changes made.",
-      "prompt": "Summarize what changed and why in three bullet points."
+      "description": "Writes a short pull request summary from the changes made. Use when a fix is ready for review.",
+      "prompt": "Summarize what changed and why in three bullet points.",
+      "references": [
+        {
+          "path": "reference/style.md",
+          "when": "Read when the team's style for pull requests matters.",
+          "content": "# Pull request style\n\n- Start with the change people will notice.\n- One bullet per change, in the past tense.\n- End with the issue it fixes, e.g. Fixes #123."
+        }
+      ],
+      "evals": [
+        {
+          "query": "Write PR notes for the fix to the login timeout bug",
+          "expected": "Three bullet points at most\nSays what changed and why\nNames the issue it fixes"
+        },
+        {
+          "query": "Summarize these changes for the pull request: renamed the config loader, added a retry",
+          "expected": "One bullet per change\nDoesn't add changes that weren't made"
+        },
+        {
+          "query": "Write PR notes. The fix only changed a test.",
+          "expected": "Says that only a test changed\nStays short"
+        }
+      ]
     }
   ],
   "edges": [
