@@ -22,7 +22,8 @@ Skill Canvas lets people build agent and skill workflows visually on a canvas, t
 
 - **Workflows are first-class.** Branches (If) and loops (Loop) are designed visually, then compiled into plain agent and skill files. There is no runtime or lock-in; the output works without Skill Canvas installed.
 - **Tool-agnostic export.** One canvas exports to both Claude Code and GitHub Copilot, with more targets possible later.
-- **Round-trip editing (committed, not built yet).** Import existing agents and skills from `.claude/` or `.github/` onto the canvas and edit them visually.
+- **Round-trip editing.** Import existing agents and skills from `.claude/` or `.github/` onto the canvas, edit them visually, and export them back to the same files without losing settings the canvas doesn't show.
+- **Good skills by default.** Output and guidance follow Anthropic's skill authoring best practices; checks explain problems in plain words and separate what must be fixed from tips.
 
 Running or debugging workflows inside VS Code is not a committed direction.
 
@@ -39,7 +40,7 @@ Running or debugging workflows inside VS Code is not a committed direction.
 - The UI must follow the active VS Code theme (light, dark and high-contrast) through VS Code theme tokens, and sit comfortably inside the editor chrome.
 - Terminology users see: Agent, Skill, Tool, Input, Output, If, Loop, Workflow, Export. File-format jargon (frontmatter, YAML) should stay out of the user's way.
 - Distribution: free to start, with paid features or a pro tier planned later.
-- Undecided: pricing, which features become paid, and when round-trip editing ships.
+- Undecided: pricing, and which features become paid.
 
 ## Brand Commitments
 
