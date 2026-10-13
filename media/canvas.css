@@ -190,7 +190,9 @@ h2, h3, p { margin: 0; }
   background: transparent; color: var(--fg);
   border: 1px dashed var(--vscode-input-border, var(--border)); border-radius: var(--radius);
 }
+.palette-import + .palette-import { margin-top: 6px; }
 .palette-import:hover { background: var(--hover); border-style: solid; }
+.palette-import:disabled { opacity: .5; cursor: default; background: transparent; border-style: dashed; }
 .empty-import { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
 .link-button { padding: 0; background: none; border: 0; font: inherit; color: var(--vscode-textLink-foreground); text-decoration: underline; text-underline-offset: 2px; }
 .link-button:hover { color: var(--vscode-textLink-activeForeground, var(--vscode-textLink-foreground)); }

@@ -22,11 +22,11 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 
 Open a folder in VS Code. Then click **New Canvas** in the **Skill Canvas** view in the activity bar, or run **Skill Canvas: New Canvas** from the Command Palette (`Ctrl+Shift+P`, or `Cmd+Shift+P` on a Mac). Give it a name and it opens as `<name>.skillcanvas` in the folder.
 
-Pick a starter to begin with a working flow, or close the card and drag blocks in from the left. The starters are grouped by the size of the job.
+Pick a template to begin with a working flow, or close the card and drag blocks in from the left. The templates are grouped by the size of the job. Click **Templates** in the block list to open them again at any time: on a board with blocks, the template goes below them. **Clear board** removes every block; undo brings them back.
 
-![A new canvas: the blocks on the left and nine starters grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
+![A new canvas: the blocks on the left and nine templates grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
 
-| Starter                  | What it does                                                                                     |
+| Template                 | What it does                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
 | **Single agent**         | One agent that handles one kind of request                                                       |
 | **Agent with a skill**   | An agent that follows a reusable playbook                                                        |
@@ -38,7 +38,7 @@ Pick a starter to begin with a working flow, or close the card and drag blocks i
 | **Spec first**           | Writes a spec to `spec.md` for you to approve, builds it, then checks it scenario by scenario    |
 | **Council**              | A chair asks three read-only helpers for their views on their own, then ranks and merges them    |
 
-The bigger starters come with their instructions filled in, so they work as they are. Change them to fit your project. **Council** uses a lead with helpers rather than separate steps, because a workflow runs its steps one after another. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
+The bigger templates come with their instructions filled in, so they work as they are. Change them to fit your project. **Council** uses a lead with helpers rather than separate steps, because a workflow runs its steps one after another. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
 
 ### 2. Sketch with blocks
 
@@ -169,7 +169,7 @@ A skill's extra files and test scenarios go in its folder, next to `SKILL.md`, f
 | `+` and `-`       | Zoom in and out                                        |
 | `0`               | Fit everything on screen                               |
 | `Space` + drag    | Move around the canvas                                 |
-| `Escape`          | Clear the selection, or close the starters             |
+| `Escape`          | Clear the selection, or close the templates            |
 | `←` and `→`       | On the details panel's edge: make it wider or narrower |
 
 ## Good to know

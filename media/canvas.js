@@ -65,6 +65,8 @@
     advanced: saved.advanced || {},
     propsWidth: typeof saved.propsWidth === 'number' ? saved.propsWidth : null, // null: the default width
   };
+  // The template card, opened from the palette on a board that has blocks.
+  let templatesOpen = false;
   const persist = () => vscode.setState({ view, props: ui.props, starters: ui.starters, preview: ui.preview, advanced: ui.advanced, propsWidth: ui.propsWidth });
 
   const $ = (id) => document.getElementById(id);
@@ -355,7 +357,11 @@
       ui.starters = true;
       persist();
     }
-    $('empty').hidden = model.nodes.length > 0 || !ui.starters;
+    $('empty').hidden = !(templatesOpen || (!model.nodes.length && ui.starters));
+    $('empty-hint').textContent = model.nodes.length
+      ? "Pick a template. It's added below what's already on the board."
+      : 'Pick a template, or drag blocks in from the left.';
+    $('clear').disabled = !model.nodes.length;
     updateTopbar();
     updateArrange();
   }
@@ -876,6 +882,10 @@
   function startWith(key) {
     const ids = {};
     let focus = null;
+    // On a board with blocks, the template goes below them.
+    const dx = model.nodes.length ? Math.min(...model.nodes.map((n) => n.x)) : 0;
+    const dy = model.nodes.length ? Math.max(...model.nodes.map((n) => n.y)) + H + 120 : 0;
+    templatesOpen = false;
     for (const item of STARTERS[key]()) {
       if (Array.isArray(item)) {
         const [from, to, port] = item;
@@ -883,6 +893,8 @@
       } else {
         const { key: k, focus: f, ...node } = item;
         node.id = uid();
+        node.x += dx;
+        node.y += dy;
         ids[k] = node.id;
         model.nodes.push(node);
         if (f) focus = node.id;
@@ -893,18 +905,41 @@
     render();
     fit();
     renderPanel();
-    say('Starter added. Fill in what each agent is for, then export.');
+    say('Template added. Fill in what each agent is for, then export.');
     requestAnimationFrame(() => focusField('description'));
   }
   for (const b of document.querySelectorAll('[data-starter]')) b.addEventListener('click', () => startWith(b.dataset.starter));
 
   function closeStarters() {
-    ui.starters = false;
+    templatesOpen = false;
+    if (!model.nodes.length) ui.starters = false;
     persist();
     $('empty').hidden = true;
     svg.focus({ preventScroll: true });
-    say('Starters closed. Drag blocks in from the left.');
+    say(model.nodes.length ? 'Templates closed.' : 'Templates closed. Drag blocks in from the left.');
   }
+
+  $('templates').addEventListener('click', () => {
+    templatesOpen = true;
+    $('empty').hidden = false;
+    render();
+    const first = document.querySelector('[data-starter]');
+    if (first) first.focus();
+  });
+
+  // Undo brings it all back, so no question first.
+  $('clear').addEventListener('click', () => {
+    if (!model.nodes.length) return;
+    flush();
+    model.nodes = [];
+    model.edges = [];
+    sel = null;
+    save();
+    render();
+    renderPanel();
+    setStatus(`Board cleared. Undo with ${UNDO}.`, { clearAfter: 6000 });
+    say(`Board cleared. Undo with ${UNDO}.`);
+  });
   $('empty-close').addEventListener('click', closeStarters);
 
   // ---- Pointer gestures ----

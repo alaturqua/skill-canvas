@@ -215,7 +215,9 @@ ${ICONS}
     <aside id="palette" aria-label="Add blocks">
       <h2 class="palette-title">Add blocks</h2>
       <div id="palette-items"></div>
+      <button id="templates" type="button" class="palette-import" title="Start from a template, like Spec first or Council"><svg class="icon" aria-hidden="true"><use href="#i-workflow"/></svg><span>Templates</span></button>
       <button id="import" type="button" class="palette-import" title="Bring existing agents and skills from .claude, .github, ~/.claude or ~/.copilot onto the canvas"><svg class="icon" aria-hidden="true"><use href="#i-import"/></svg><span>Import agents &amp; skills</span></button>
+      <button id="clear" type="button" class="palette-import" title="Remove every block from the board. Undo brings them back."><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg><span>Clear board</span></button>
       <details class="shortcuts">
         <summary>Keyboard shortcuts</summary>
         <dl>
@@ -241,9 +243,9 @@ ${ICONS}
       </svg>
       <div id="empty" class="empty" hidden>
         <div class="empty-card" role="region" aria-labelledby="empty-title">
-          <button type="button" id="empty-close" class="icon-button empty-close" aria-label="Close starters" title="Close (Escape)"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
-          <h2 id="empty-title">Start a workflow</h2>
-          <p>Pick a starter, or drag blocks in from the left.</p>
+          <button type="button" id="empty-close" class="icon-button empty-close" aria-label="Close templates" title="Close (Escape)"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
+          <h2 id="empty-title">Start from a template</h2>
+          <p id="empty-hint">Pick a template, or drag blocks in from the left.</p>
           <div class="starters">
             <section aria-labelledby="starters-small">
               <h3 id="starters-small">Small job</h3>
