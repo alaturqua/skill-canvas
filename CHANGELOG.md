@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
+Templates for every size of job, steps that hand work over in files, and agents and skills from plugins and GitHub.
+
+### Added
+
+- Four templates with their instructions filled in:
+  - **Plan, build, review:** separate agents plan, build and review, with up to 3 review rounds.
+  - **Research, then write:** gather facts with sources, then write only from them.
+  - **Spec first:** write a spec with WHEN/THEN scenarios to `spec.md`, get it approved, build it, and check every scenario. Inspired by [OpenSpec](https://github.com/Fission-AI/OpenSpec).
+  - **Council:** a chair asks three read-only helpers on their own, then ranks and merges their answers. Inspired by [LLM Council](https://github.com/karpathy/llm-council).
+  - On an empty board, templates with a loop are laid out like **Arrange** does, so their back arrows don't cross.
+- **Reads files** and **Writes files** on agents and skills. The workflow tells each step which files to read first and where to save its result, so steps hand work to each other through files like `plan.md`. A step that reads a file no step writes gets a tip. The new templates use it.
+- **Plugins installed in Claude Code** appear in the import list. Their agents and skills are linked, not copied: the export refers to them as `plugin:name` and never writes their files.
+- **Download from GitHub or a marketplace.** At the top of the import list: enter a repository, a marketplace or a folder link, and pick the agents and skills to copy onto the board. Markdown and test scenarios come along; scripts are named, not downloaded. Each block remembers the repository and commit it came from.
+- **Templates** and **Clear board** buttons in the block list. Templates opens the templates at any time and adds the one you pick below the board; Clear board removes every block, and undo brings them back.
+
+### Changed
+
+- Starters are now called templates, grouped by the size of the job: Small job, Medium job, Big job and Several opinions.
+
 ## [0.3.0] - 2026-10-06
 
 Skill Canvas now follows Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) and supports the newer Claude Code settings for skills and agents.
@@ -118,7 +139,8 @@ First public release. Version 0.1.0 was prepared but not published.
 
 - Licensed under the Apache License 2.0.
 
-[Unreleased]: https://github.com/alaturqua/skill-canvas/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/alaturqua/skill-canvas/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/alaturqua/skill-canvas/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/alaturqua/skill-canvas/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/alaturqua/skill-canvas/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/alaturqua/skill-canvas/compare/v0.1.3...v0.2.0

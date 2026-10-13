@@ -80,6 +80,28 @@
     }
   }
 
+  // "Try it on the board": clear the live board and pick that template in it, as a person would.
+  function tryTemplate(key) {
+    frame.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    let tries = 0;
+    const run = () => {
+      const doc = frame.contentDocument;
+      const button = doc && doc.querySelector(`[data-starter="${key}"]`);
+      // Wait for the editor, then briefly for its example board, which would otherwise replace the template.
+      if ((!button || (!doc.querySelector('#nodes > *') && tries < 10)) && ++tries < 40) {
+        setTimeout(run, 150);
+        return;
+      }
+      if (!button) return;
+      doc.getElementById('clear').click();
+      button.click();
+    };
+    run();
+  }
+  for (const button of document.querySelectorAll('[data-template]')) {
+    button.addEventListener('click', () => frame && tryTemplate(button.dataset.template));
+  }
+
   window.addEventListener('message', (event) => {
     if (!frame || event.source !== frame.contentWindow || event.origin !== location.origin) return;
     const msg = event.data || {};

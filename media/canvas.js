@@ -65,6 +65,8 @@
     advanced: saved.advanced || {},
     propsWidth: typeof saved.propsWidth === 'number' ? saved.propsWidth : null, // null: the default width
   };
+  // The template card, opened from the palette on a board that has blocks.
+  let templatesOpen = false;
   const persist = () => vscode.setState({ view, props: ui.props, starters: ui.starters, preview: ui.preview, advanced: ui.advanced, propsWidth: ui.propsWidth });
 
   const $ = (id) => document.getElementById(id);
@@ -355,7 +357,11 @@
       ui.starters = true;
       persist();
     }
-    $('empty').hidden = model.nodes.length > 0 || !ui.starters;
+    $('empty').hidden = !(templatesOpen || (!model.nodes.length && ui.starters));
+    $('empty-hint').textContent = model.nodes.length
+      ? "Pick a template. It's added below what's already on the board."
+      : 'Pick a template, or drag blocks in from the left.';
+    $('clear').disabled = !model.nodes.length;
     updateTopbar();
     updateArrange();
   }
@@ -363,7 +369,7 @@
   function nodeLabel(n, warnings) {
     const k = kindOf(n);
     const step = analysis && analysis.steps && analysis.steps[n.id];
-    const parts = [`${step ? `Step ${step}, ` : ''}${k.label} block: ${n.name}.`];
+    const parts = [`${step ? `Step ${step}, ` : ''}${k.label} block${n.plugin ? ` from the ${n.plugin} plugin` : ''}: ${n.name}.`];
     const outs = nextEdges().filter((e) => e.from === n.id && byId(e.to));
     if (outs.length) {
       parts.push(outs.map((e) => {
@@ -397,7 +403,7 @@
     el('rect', { class: 'ring', x: -4, y: -4, width: W + 8, height: H + 8, rx: 11 }, g);
     el('rect', { class: 'body', width: W, height: H, rx: 8 }, g);
     el('use', { href: `#i-${n.kind}`, x: 12, y: 11, width: 16, height: 16, class: 'glyph' }, g);
-    el('text', { class: 'kind', x: 34, y: 23, text: k.label }, g);
+    el('text', { class: 'kind', x: 34, y: 23, text: n.plugin ? `${k.label} · ${n.plugin}` : k.label }, g);
     // A branch's output is labelled (yes/no, repeat/done) until it's connected;
     // after that the label sits on the connection instead, so it shows once.
     const connected = (o) => nextEdges().some((e) => e.from === n.id && portOf(n, e.fromPort) === o.id);
@@ -804,20 +810,107 @@
       { key: 'o', kind: 'output', name: 'Review', x: 480, y: 0 },
       ['i', 'a'], ['a', 'o'],
     ],
+    // Plan, build, review: separate roles for each phase, with review rounds capped at 3.
+    roles: () => [
+      { key: 'i', kind: 'input', name: 'Task', x: 0, y: 48 },
+      { key: 'p', kind: 'agent', name: 'Plan', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, Write', writes: 'plan.md',
+        description: 'Use first on a task that touches several files, to plan before changing any code.',
+        prompt: 'Read the task and the code it touches. Write a short plan to `plan.md`: the files to change, in what order, and how to test each part. Note anything risky or unclear.\n\nDo not change any code.' },
+      { key: 'l', kind: 'loop', name: 'Up to 3 rounds', x: 432, y: 48, maxIterations: 3 },
+      { key: 'b', kind: 'agent', name: 'Build', x: 648, y: 0, reads: 'plan.md',
+        description: 'Use after a plan is ready, to build it and to fix what a review asks to change.',
+        prompt: 'Follow the plan. If a review came back, fix every point it marks as "must change". Run the tests before you finish, and report what you changed.' },
+      { key: 'r', kind: 'agent', name: 'Review', x: 864, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob', reads: 'plan.md',
+        description: 'Use after a change is built, to review it against the plan before it is finished.',
+        prompt: 'Review the change against the task and the plan. List each point as "must change" or "could improve", with the file and line.\n\nDo not change anything.' },
+      { key: 'c', kind: 'if', name: 'Approved?', x: 1080, y: 0, condition: 'The review lists nothing that must change' },
+      { key: 'o', kind: 'output', name: 'Change', x: 1296, y: 0 },
+      { key: 'x', kind: 'output', name: 'Open issues', x: 648, y: 160 },
+      ['i', 'p'], ['p', 'l'], ['l', 'b', 'body'], ['b', 'r'], ['r', 'c'], ['c', 'o', 'true'], ['c', 'l', 'false'], ['l', 'x', 'done'],
+    ],
+    // Research, then write: facts with sources first, so the text only says what was found.
+    research: () => [
+      { key: 'i', kind: 'input', name: 'Topic', x: 0, y: 0 },
+      { key: 'r', kind: 'agent', name: 'Research', x: 240, y: 0, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, WebSearch, WebFetch, Write', writes: 'notes.md',
+        description: 'Use to gather facts and sources on a topic before anything is written about it.',
+        prompt: 'Find what is known about the topic and save your notes to `notes.md`. For each finding, note its source (a file path or a link) and how sure you are. Keep facts and opinions apart, and say what you could not find.\n\nDo not write the final text.' },
+      { key: 'w', kind: 'agent', name: 'Write', x: 480, y: 0, reads: 'notes.md',
+        description: 'Use after the research is done, to turn its notes into a finished text.',
+        prompt: 'Write the text from the research notes only. Every claim needs a source from the notes; leave out anything without one. Start with the answer, then give the details.' },
+      { key: 'o', kind: 'output', name: 'Report', x: 720, y: 0 },
+      ['i', 'r'], ['r', 'w'], ['w', 'o'],
+    ],
+    // Spec first: agree on what to build, build it, then check it scenario by scenario.
+    spec: () => [
+      { key: 'i', kind: 'input', name: 'Feature request', x: 0, y: 48 },
+      { key: 'w', kind: 'agent', name: 'Write the spec', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, Write', writes: 'spec.md',
+        description: 'Use to turn a feature request into a written spec before any code changes.',
+        prompt: 'Read the request and the code it touches. Write the spec to `spec.md`:\n\n- **Why**: the problem, in two or three sentences.\n- **Requirements**: a `### Requirement:` heading for each, with scenarios written as WHEN … THEN ….\n- **Out of scope**: what this change leaves alone.\n\nAsk about anything you would otherwise have to guess. Do not change any code.' },
+      { key: 'a', kind: 'if', name: 'Spec approved?', x: 432, y: 48, condition: 'The user read the spec and approved it' },
+      { key: 'l', kind: 'loop', name: 'Up to 3 tries', x: 648, y: 48, maxIterations: 3 },
+      { key: 'b', kind: 'agent', name: 'Build it', x: 864, y: 0, reads: 'spec.md',
+        description: 'Use after the spec in spec.md is approved, to build the change.',
+        prompt: 'Read `spec.md` and make the smallest change that meets every requirement. Where the project has tests, add one for each scenario. If the spec is unclear, stop and say so instead of guessing.' },
+      { key: 'v', kind: 'agent', name: 'Check against the spec', x: 1080, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob, Bash', reads: 'spec.md',
+        description: 'Use after a change is built, to check it against spec.md.',
+        prompt: 'Read `spec.md` and the change. For each scenario, say whether it passes and how you know: a test, a run, or the code. List every scenario that fails and what is missing.\n\nDo not change anything.' },
+      { key: 'c', kind: 'if', name: 'Every scenario passes?', x: 1296, y: 0, condition: 'The check found no failing scenario' },
+      { key: 'o', kind: 'output', name: 'Done', x: 1512, y: 0 },
+      { key: 'x', kind: 'output', name: 'Report what is missing', x: 864, y: 160 },
+      ['i', 'w'], ['w', 'a'], ['a', 'l', 'true'], ['a', 'w', 'false'], ['l', 'b', 'body'], ['b', 'v'], ['v', 'c'], ['c', 'o', 'true'], ['c', 'l', 'false'], ['l', 'x', 'done'],
+    ],
+    // Council: helpers answer on their own, then the chair ranks the answers and merges them.
+    // Helpers rather than parallel steps, because the workflow runs its steps one after another.
+    council: () => [
+      { key: 'i', kind: 'input', name: 'Question', x: 0, y: 0 },
+      { key: 'c', kind: 'agent', name: 'Chair', x: 240, y: 0, focus: true,
+        description: 'Use when a question or decision deserves several independent opinions before answering.',
+        prompt: "Give the question to each helper on its own. Don't show any helper what the others said.\n\nWhen all of them have answered:\n\n1. Rank the answers by how well they hold up, without favoring any helper.\n2. Note where they agree, where they disagree, and why.\n3. Write one answer that keeps the strongest points, and say what is still uncertain." },
+      { key: 'o', kind: 'output', name: 'Answer', x: 480, y: 0 },
+      { key: 'h1', kind: 'agent', name: 'Correctness view', x: 0, y: 152, toolsMode: 'only', tools: 'Read, Grep, Glob',
+        description: 'Use for an independent opinion on whether something is correct.',
+        prompt: 'Answer the question on your own. Focus on correctness: facts, logic and edge cases. Give your answer and how sure you are.' },
+      { key: 'h2', kind: 'agent', name: 'Simplicity view', x: 240, y: 152, toolsMode: 'only', tools: 'Read, Grep, Glob',
+        description: 'Use for an independent opinion on whether there is a simpler way.',
+        prompt: 'Answer the question on your own. Focus on simplicity: what could be left out, and the simplest thing that works. Give your answer and how sure you are.' },
+      { key: 'h3', kind: 'agent', name: 'Risk view', x: 480, y: 152, toolsMode: 'only', tools: 'Read, Grep, Glob',
+        description: 'Use for an independent opinion on what could go wrong.',
+        prompt: 'Answer the question on your own. Focus on risk: what could break, be lost or be misused, and how likely that is. Give your answer and how sure you are.' },
+      ['i', 'c'], ['c', 'o'], ['c', 'h1', 'uses'], ['c', 'h2', 'uses'], ['c', 'h3', 'uses'],
+    ],
   };
   function startWith(key) {
     const ids = {};
     let focus = null;
-    for (const item of STARTERS[key]()) {
+    // On a board with blocks, the template goes below them.
+    const items = STARTERS[key]();
+    // On an empty board, a template with a loop is arranged like the Arrange buttons do: its back arrows need the room.
+    const tidy = !model.nodes.length && items.some((i) => i.kind === 'loop');
+    const dx = model.nodes.length ? Math.min(...model.nodes.map((n) => n.x)) : 0;
+    const dy = model.nodes.length ? Math.max(...model.nodes.map((n) => n.y)) + H + 120 : 0;
+    templatesOpen = false;
+    for (const item of items) {
       if (Array.isArray(item)) {
         const [from, to, port] = item;
         model.edges.push(port === 'uses' ? { id: uid(), kind: 'uses', from: ids[from], to: ids[to] } : { id: uid(), from: ids[from], fromPort: port || 'out', to: ids[to] });
       } else {
         const { key: k, focus: f, ...node } = item;
         node.id = uid();
+        node.x += dx;
+        node.y += dy;
         ids[k] = node.id;
         model.nodes.push(node);
         if (f) focus = node.id;
+      }
+    }
+    if (tidy) {
+      const pos = layout(model.direction || 'LR');
+      for (const n of model.nodes) {
+        const p = pos.get(n.id);
+        if (p) {
+          n.x = p.x;
+          n.y = p.y;
+        }
       }
     }
     sel = focus ? { type: 'node', id: focus } : null;
@@ -825,18 +918,42 @@
     render();
     fit();
     renderPanel();
-    say('Starter added. Fill in what each agent is for, then export.');
+    setStatus('Template added. Fill in what each agent is for, then export.', { clearAfter: 6000 });
+    say('Template added. Fill in what each agent is for, then export.');
     requestAnimationFrame(() => focusField('description'));
   }
   for (const b of document.querySelectorAll('[data-starter]')) b.addEventListener('click', () => startWith(b.dataset.starter));
 
   function closeStarters() {
-    ui.starters = false;
+    templatesOpen = false;
+    if (!model.nodes.length) ui.starters = false;
     persist();
     $('empty').hidden = true;
     svg.focus({ preventScroll: true });
-    say('Starters closed. Drag blocks in from the left.');
+    say(model.nodes.length ? 'Templates closed.' : 'Templates closed. Drag blocks in from the left.');
   }
+
+  $('templates').addEventListener('click', () => {
+    templatesOpen = true;
+    $('empty').hidden = false;
+    render();
+    const first = document.querySelector('[data-starter]');
+    if (first) first.focus();
+  });
+
+  // Undo brings it all back, so no question first.
+  $('clear').addEventListener('click', () => {
+    if (!model.nodes.length) return;
+    flush();
+    model.nodes = [];
+    model.edges = [];
+    sel = null;
+    save();
+    render();
+    renderPanel();
+    setStatus(`Board cleared. Undo with ${UNDO}.`, { clearAfter: 6000 });
+    say(`Board cleared. Undo with ${UNDO}.`);
+  });
   $('empty-close').addEventListener('click', closeStarters);
 
   // ---- Pointer gestures ----
@@ -1624,8 +1741,23 @@
     say(toId ? `${aria.split(',')[0]}: ${nameOf(toId)}.` : 'Connection removed.');
   }
 
+  // Files a step reads and writes, so steps of a workflow can hand work to each other.
+  const HANDOFF = [
+    { key: 'reads', label: 'Reads files', hint: 'Comma-separated, e.g. spec.md. In a workflow, this step is told to read them first.' },
+    { key: 'writes', label: 'Writes files', hint: 'Comma-separated, e.g. plan.md. In a workflow, this step is told to save its result there, for later steps.' },
+  ];
+
+  // An agent or skill from an installed plugin is only linked, so there's nothing to edit.
+  function pluginSection(n) {
+    return h('div', { class: 'field' },
+      h('h3', { text: "What it's for" }),
+      h('p', { text: n.description || 'No description.' }),
+      h('small', { class: 'hint', text: `Installed with the ${n.plugin} plugin in Claude Code. Skill Canvas refers to it as ${n.plugin}:${n.name} and never writes its files. To change it, change the plugin.` }));
+  }
+
   function fieldsFor(n) {
     const claude = target() === 'claude';
+    if (n.plugin) return [() => pluginSection(n), () => (model.edges.some((e) => isUses(e) && e.to === n.id) ? usedBySection(n) : null)];
     const NAME = { key: 'name', label: 'Name' };
     switch (n.kind) {
       case 'agent':
@@ -1633,6 +1765,7 @@
           NAME,
           { key: 'description', label: "What it's for", type: 'textarea', rows: 2, hint: 'The AI reads this to decide when to hand work to this agent.', placeholder: 'e.g. Fixes reported bugs and checks that the tests pass' },
           { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'How the agent should work, in your own words.', placeholder: 'e.g. Reproduce the bug first. Keep changes small.' },
+          ...HANDOFF,
           () => toolsSection(n),
           () => skillsSection(n),
           () => agentsSection(n),
@@ -1654,6 +1787,7 @@
           NAME,
           { key: 'description', label: "What it's for", type: 'textarea', rows: 2, counter: DESCRIPTION_MAX, hint: 'The AI reads this to decide when to use this skill. Say what it does and when to use it.', placeholder: 'e.g. Writes release notes from a list of changes. Use when the user asks for release notes.' },
           { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'The steps or rules to follow whenever this skill is used. Keep them short: the AI already knows the basics.' },
+          ...HANDOFF,
           () => referencesSection(n),
           () => evalsSection(n),
           () => otherFilesSection(n),
@@ -1695,8 +1829,12 @@
 
   function nodePanel(n, into) {
     const k = kindOf(n);
-    into.append(head(n.kind, n.name || k.label, k.label));
+    into.append(head(n.kind, n.name || k.label, n.plugin ? `${k.label} · ${n.plugin} plugin` : k.label));
     const body = h('div', { class: 'props-body' }, h('div', { class: 'general-warnings', hidden: true }));
+    if (n.source) {
+      const [repo, path] = n.source.split(':');
+      body.append(h('small', { class: 'hint', text: `Downloaded from ${repo.replace('@', ' at commit ')}, ${path}. Check its license before you share it.` }));
+    }
     for (const spec of fieldsFor(n)) {
       const part = typeof spec === 'function' ? spec() : field(n, spec);
       if (part) body.append(part);

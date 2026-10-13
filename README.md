@@ -6,14 +6,15 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 
 [Try it in your browser](https://alaturqua.github.io/skill-canvas/#try) · [Website](https://alaturqua.github.io/skill-canvas/) · [Report an issue](https://github.com/alaturqua/skill-canvas/issues)
 
-![Starting from a starter, filling in an agent (a tip asks to say when to use it, and goes away once it does), filling in its skill and a test scenario, switching to GitHub Copilot, and arranging the blocks top to bottom](docs/images/hero.gif)
+![Starting from a template, filling in an agent (a tip asks to say when to use it, and goes away once it does), filling in its skill and a test scenario, switching to GitHub Copilot, and arranging the blocks top to bottom](docs/images/hero.gif)
 
 ## Why Skill Canvas
 
 - **See the whole workflow.** Steps, decisions and retries sit on one board, numbered in the order they run.
 - **Real files, not a new format.** You get standard agent and skill files in the places Claude Code and GitHub Copilot look for them. They keep working without Skill Canvas installed.
 - **One sketch, two tools.** Switch between Claude Code and GitHub Copilot at any time. The same board prints both.
-- **Bring what you have.** Import the agents and skills you already wrote, edit them on the board, and export them back to the same files. Settings the board doesn't show are kept as they are.
+- **Bring what you have.** Import the agents and skills you already wrote, edit them on the board, and export them back to the same files. Settings the board doesn't show are kept as they are. Link the plugins you installed in Claude Code, or copy agents and skills from any GitHub repository or marketplace.
+- **Start from a proven shape.** Templates for every size of job, from a single agent to a spec-first build or a council of reviewers.
 - **Good skills by default.** Every block is checked against Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices), with plain tips on how to make it better.
 
 ## Quick start
@@ -22,11 +23,23 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 
 Open a folder in VS Code. Then click **New Canvas** in the **Skill Canvas** view in the activity bar, or run **Skill Canvas: New Canvas** from the Command Palette (`Ctrl+Shift+P`, or `Cmd+Shift+P` on a Mac). Give it a name and it opens as `<name>.skillcanvas` in the folder.
 
-Pick a starter to begin with a small working flow, or close the card and drag blocks in from the left.
+Pick a template to begin with a working flow, or close the card and drag blocks in from the left. The templates are grouped by the size of the job. Click **Templates** in the block list to open them again at any time: on a board with blocks, the template goes below them. **Clear board** removes every block; undo brings them back.
 
-![A new canvas: the blocks on the left and five starters: Single agent, Agent with a skill, Try until it works, Skill with a check, and Read-only reviewer](docs/images/starters.png)
+![A new canvas: the blocks on the left with the Templates, Import and Clear board buttons, and nine templates grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
 
-**Skill with a check** follows a playbook, checks the result, then fixes it and checks again. **Read-only reviewer** is an agent that can look but not change anything.
+| Template                 | What it does                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Single agent**         | One agent that handles one kind of request                                                       |
+| **Agent with a skill**   | An agent that follows a reusable playbook                                                        |
+| **Read-only reviewer**   | An agent that can look but not change anything                                                   |
+| **Try until it works**   | Does the work, checks it, and retries up to 3 times                                              |
+| **Skill with a check**   | Follows a playbook, checks the result, then fixes it and checks again                            |
+| **Plan, build, review**  | One agent plans, one builds, a read-only one reviews; up to 3 rounds until nothing must change   |
+| **Research, then write** | Gathers facts with their sources, then writes only from those notes                              |
+| **Spec first**           | Writes a spec to `spec.md` for you to approve, builds it, then checks it scenario by scenario    |
+| **Council**              | A chair asks three read-only helpers for their views on their own, then ranks and merges them    |
+
+The bigger templates come with their instructions filled in, so they work as they are. Change them to fit your project. **Council** uses a lead with helpers rather than separate steps, because a workflow runs its steps one after another. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
 
 ### 2. Sketch with blocks
 
@@ -66,6 +79,7 @@ The toolbar counts anything still to fix, like an agent without instructions or 
 - **Decisions and retries:** an **If** block has a *yes* and a *no* path. A **Loop** has *repeat* and *done*.
 - **Skills and tools:** drag from the small handle under an agent to a Skill or Tool block. The dotted **uses** link gives that agent the skill.
 - **Helper agents:** drag from that handle to another Agent block, or use **Agents it can hand work to** in the details panel. The first agent becomes a lead that can pass parts of the work to its helpers. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
+- **Hand work over in files:** fill in **Reads files** and **Writes files** on an agent or skill, like `plan.md` or `spec.md`. The workflow tells each step which files to read first and where to save its result. A step that reads a file no other step writes gets a tip.
 - **Tidy up:** the **Arrange** buttons at the bottom right lay the board out left to right or top to bottom. The step numbers follow along.
 
 ![A bug-fix workflow: Bug report, Up to 3 tries, Fix & test, Tests pass?, then Pull request or back to try again, with a Write PR notes skill linked to the agent](docs/images/connect.png)
@@ -87,7 +101,13 @@ Type the workflow's command in Claude Code or GitHub Copilot Chat, for example `
 
 ## Import the agents and skills you already have
 
-Click **Import agents & skills** at the bottom of the block list, or run **Skill Canvas: Import Agents & Skills**. Pick from `.claude` or `.github` in your project, or from your user folder (`~/.claude`, `~/.copilot`). Skills an agent already loads arrive linked to it. Edit them on the board, export, and the same files update in place.
+Click **Import agents & skills** in the block list, or run **Skill Canvas: Import Agents & Skills**. The list has three kinds of sources:
+
+- **Your files:** `.claude` or `.github` in your project, and your user folder (`~/.claude`, `~/.copilot`).
+- **Plugins you installed in Claude Code**, linked rather than copied. See [Use plugins you installed in Claude Code](#use-plugins-you-installed-in-claude-code).
+- **A GitHub repository or marketplace**, copied onto the board. See [Download from GitHub or a marketplace](#download-from-github-or-a-marketplace).
+
+Skills an agent already loads arrive linked to it. Edit them on the board, export, and the same files update in place.
 
 Nothing is lost on the way back:
 
@@ -96,6 +116,24 @@ Nothing is lost on the way back:
 - Other files, like scripts, are listed and left alone.
 
 ![An imported Code reviewer agent linked to its Code standards skill, with the skill's file previewed in the details panel](docs/images/import.png)
+
+### Download from GitHub or a marketplace
+
+Pick **From a GitHub repository or marketplace…** at the top of the import list, then enter a repository like `anthropics/skills`, a marketplace like `anthropics/claude-plugins-official`, or a link to a folder in one. Skill Canvas lists every agent and skill it finds, grouped by folder (one group per plugin in a marketplace), with the repository's license in the title.
+
+What you pick is copied onto the board, where you can read and change it before you export:
+
+- The agent or skill file, its other Markdown files and its test scenarios come along. Scripts and other files are named but not downloaded; get them from the repository if a skill needs them.
+- Each block remembers the repository and commit it came from, shown at the top of its details.
+- Nothing is written until you export. If a file with the same name is already in your project, the export asks before replacing it.
+
+If you're signed in to GitHub in VS Code, that account is used, so private repositories work and the hourly limit is higher. Skill Canvas never asks you to sign in.
+
+### Use plugins you installed in Claude Code
+
+Plugins you installed with `/plugin install` also appear in the import list, one group per plugin. Their agents and skills are **linked, not copied**. On the board they show the plugin's name, like `Skill · superpowers`, and the export refers to them as `superpowers:brainstorming`. Use them as steps, give them to an agent, or make them helpers. Skill Canvas never writes or changes a plugin's files, so updating the plugin keeps working.
+
+Plugins are a Claude Code feature, so a board that uses them shows a warning when you switch to GitHub Copilot.
 
 ## Best-practice checks
 
@@ -150,13 +188,24 @@ A skill's extra files and test scenarios go in its folder, next to `SKILL.md`, f
 | `+` and `-`       | Zoom in and out                                        |
 | `0`               | Fit everything on screen                               |
 | `Space` + drag    | Move around the canvas                                 |
-| `Escape`          | Clear the selection, or close the starters             |
+| `Escape`          | Clear the selection, or close the templates            |
 | `←` and `→`       | On the details panel's edge: make it wider or narrower |
+
+## Commands and settings
+
+| Command or setting                          | Does                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| **Skill Canvas: New Canvas**                | Creates a `.skillcanvas` file in the open folder and opens it         |
+| **Skill Canvas: Export Agents & Skills**    | Writes the open canvas's agents, skills and workflow                  |
+| **Skill Canvas: Import Agents & Skills**    | Brings agents and skills from your files, plugins or GitHub onto it   |
+| `skillCanvas.lint.enabled`                  | Checks `SKILL.md` and agent files you open as text (on by default)    |
+
+Export and Import are also buttons in the canvas's editor title bar.
 
 ## Good to know
 
 - **Your canvas is a file.** A `.skillcanvas` file is plain JSON. Commit it next to the files it makes, so your team can open and change the workflow too.
-- **Nothing leaves your machine.** Skill Canvas only reads and writes files in your workspace and user folder.
+- **Your work stays on your machine.** Skill Canvas reads and writes files in your workspace and user folder. It only goes online when you import from GitHub, to download the list and the files you pick. Nothing is uploaded.
 - **It follows your theme**, including high contrast themes.
 - **Requirements:** VS Code 1.90 or later. To run what you export, you need Claude Code or GitHub Copilot.
 

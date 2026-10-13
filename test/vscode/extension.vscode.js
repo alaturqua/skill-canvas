@@ -47,7 +47,12 @@ suite('Skill Canvas in VS Code', () => {
   suiteTeardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     await vscode.workspace.getConfiguration('skillCanvas').update('lint.enabled', undefined, vscode.ConfigurationTarget.Global);
-    fs.rmSync(tmp, { recursive: true, force: true });
+    // Windows can hold the folder a moment after its editors close; a leftover temp folder isn't a failure.
+    try {
+      fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    } catch (e) {
+      console.warn(`Could not remove ${tmp}: ${e.message}`);
+    }
   });
 
   test('its commands are registered', async () => {

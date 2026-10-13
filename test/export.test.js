@@ -392,3 +392,15 @@ test('loop without a limit warns on its field', () => {
   const r = buildExport(x, NAME, 'claude');
   assert.ok(r.warnings.some((w) => w.nodeId === 'lp1' && w.field === 'maxIterations'));
 });
+
+test('steps say which files they read and write', () => {
+  const x = base();
+  Object.assign(x.nodes.find((n) => n.id === 'ag1'), { reads: 'bug.md, plan.md', writes: 'plan.md, log.md' });
+  const r = buildExport(x, NAME, 'claude');
+  assert.match(workflowOf(r), /Delegate to the `fix-test` subagent\. Tell it to read `bug\.md` and `plan\.md` first\. Tell it to save its result to `plan\.md` and `log\.md`\. Then/);
+  // Only bug.md is a tip: no step writes it, while plan.md is written by a step.
+  const tips = r.warnings.filter((w) => w.field === 'reads');
+  assert.deepEqual(tips.map((w) => [w.nodeId, w.level]), [['ag1', 'tip']]);
+  assert.match(tips[0].text, /"bug\.md"/);
+  assert.doesNotMatch(tips[0].text, /plan\.md/);
+});

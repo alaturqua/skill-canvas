@@ -2,7 +2,7 @@
   "name": "skill-canvas",
   "displayName": "Skill Canvas",
   "description": "Visual canvas for building agent and skill workflows.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "icon": "media/skill-canvas.png",
   "publisher": "alaturqua",
   "license": "Apache-2.0",

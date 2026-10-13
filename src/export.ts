@@ -196,6 +196,11 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     if (n.kind !== 'agent' && n.kind !== 'skill') {
       continue;
     }
+    // A plugin's agents and skills are known as plugin:name, and don't take a name here.
+    if (n.plugin) {
+      names[n.id] = `${n.plugin}:${n.name.trim()}`;
+      continue;
+    }
     const base = slug(n.name) || n.kind;
     let name = base;
     for (let i = 2; taken[n.kind].has(name); i++) {
@@ -214,6 +219,13 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     }
     const name = names[n.id];
     const warn = (field: string, text: string) => warnings.push({ nodeId: n.id, field, text });
+    // Installed with a plugin: linked by name, its files are never written.
+    if (n.plugin) {
+      if (target === 'copilot') {
+        warnings.push({ nodeId: n.id, text: `Comes from the ${n.plugin} plugin for Claude Code, which GitHub Copilot can't use.` });
+      }
+      continue;
+    }
     const check = (issues: LintIssue[]) =>
       issues.forEach((i) => warnings.push({ nodeId: n.id, field: LINT_FIELDS[i.key] ?? i.key, text: i.text, level: i.level }));
     // An empty description is reported by the checks below.
@@ -359,10 +371,25 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
   const flow = workflowSteps(model.nodes, next, uses);
   for (const n of flow.unreachable) {
     const text =
-      n.kind === 'agent' || n.kind === 'skill'
+      (n.kind === 'agent' || n.kind === 'skill') && !n.plugin
         ? `Not connected to the other steps. It's still saved as its own ${n.kind}.`
         : 'Not connected to the other steps, so it is left out.';
     warnings.push({ nodeId: n.id, text });
+  }
+
+  if (flow.order.length >= 2) {
+    const written = new Set(flow.order.flatMap((n) => list(n.writes)));
+    for (const n of flow.order) {
+      const missing = list(n.reads).filter((f) => !written.has(f));
+      if (missing.length) {
+        warnings.push({
+          nodeId: n.id,
+          field: 'reads',
+          level: 'tip',
+          text: `No step writes ${missing.map((f) => `"${f}"`).join(', ')}. Add it to the step that creates it, or make sure it exists before the workflow runs.`,
+        });
+      }
+    }
   }
 
   let command: string | undefined;
@@ -706,6 +733,11 @@ function workflowBody(
     const t = oneLine(s);
     return t ? ` ${prefix}${t}${/[.?!]$/.test(t) ? '' : '.'}` : '';
   };
+  // Files a step reads and writes, so steps hand work to each other through the same files.
+  const files = (s: string | undefined) => join(list(s).map((f) => `\`${f}\``));
+  const handoff = (n: CanvasNode, read: string, write: string) =>
+    (list(n.reads).length ? ` ${read} ${files(n.reads)} first.` : '') +
+    (list(n.writes).length ? ` ${write} ${files(n.writes)}.` : '');
   const agentWord = target === 'claude' ? 'subagent' : 'custom agent';
   // Bold step title, ending in a period unless the name already ends in punctuation.
   const title = (prefix: string, name: string) => `**${prefix}${name}${/[.?!:]$/.test(name) ? '' : '.'}**`;
@@ -715,9 +747,9 @@ function workflowBody(
       case 'input':
         return `${title('Start: ', n.name)}${note(n.prompt, 'The user provides: ')} ${then(n)}`;
       case 'agent':
-        return `${title('', n.name)} Delegate to the \`${names[n.id]}\` ${agentWord}. ${then(n)}`;
+        return `${title('', n.name)} Delegate to the \`${names[n.id]}\` ${agentWord}.${handoff(n, 'Tell it to read', 'Tell it to save its result to')} ${then(n)}`;
       case 'skill':
-        return `${title('', n.name)} Use the \`${names[n.id]}\` skill. ${then(n)}`;
+        return `${title('', n.name)} Use the \`${names[n.id]}\` skill.${handoff(n, 'Read', 'Save the result to')} ${then(n)}`;
       case 'tool':
         return `${title('Tool: ', n.name)}${note(n.prompt)} ${then(n)}`;
       case 'output':
