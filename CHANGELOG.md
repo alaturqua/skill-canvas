@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Four starters with their instructions filled in:
+  - **Plan, build, review:** separate agents plan, build and review, with up to 3 review rounds.
+  - **Research, then write:** gather facts with sources, then write only from them.
+  - **Spec first:** write a spec with WHEN/THEN scenarios to `spec.md`, get it approved, build it, and check every scenario. Inspired by [OpenSpec](https://github.com/Fission-AI/OpenSpec).
+  - **Council:** a chair asks three read-only helpers on their own, then ranks and merges their answers. Inspired by [LLM Council](https://github.com/karpathy/llm-council).
+
+### Changed
+
+- The starters are grouped by the size of the job: Small job, Medium job, Big job and Several opinions.
+
 ## [0.3.0] - 2026-10-06
 
 Skill Canvas now follows Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) and supports the newer Claude Code settings for skills and agents.

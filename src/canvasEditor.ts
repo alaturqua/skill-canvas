@@ -245,11 +245,27 @@ ${ICONS}
           <h2 id="empty-title">Start a workflow</h2>
           <p>Pick a starter, or drag blocks in from the left.</p>
           <div class="starters">
-            <button type="button" data-starter="agent"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Single agent</strong><span>An agent that handles one kind of request</span></span></button>
-            <button type="button" data-starter="skill"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Agent with a skill</strong><span>An agent that follows a reusable playbook</span></span></button>
-            <button type="button" data-starter="retry"><svg class="glyph k-loop" aria-hidden="true"><use href="#i-loop"/></svg><span><strong>Try until it works</strong><span>Do the work, check it, and retry up to 3 times</span></span></button>
-            <button type="button" data-starter="checked"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Skill with a check</strong><span>Follow a playbook, check the result, fix and check again</span></span></button>
-            <button type="button" data-starter="reviewer"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Read-only reviewer</strong><span>An agent that can look but not change anything</span></span></button>
+            <section aria-labelledby="starters-small">
+              <h3 id="starters-small">Small job</h3>
+              <button type="button" data-starter="agent"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Single agent</strong><span>An agent that handles one kind of request</span></span></button>
+              <button type="button" data-starter="skill"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Agent with a skill</strong><span>An agent that follows a reusable playbook</span></span></button>
+              <button type="button" data-starter="reviewer"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Read-only reviewer</strong><span>An agent that can look but not change anything</span></span></button>
+            </section>
+            <section aria-labelledby="starters-medium">
+              <h3 id="starters-medium">Medium job</h3>
+              <button type="button" data-starter="retry"><svg class="glyph k-loop" aria-hidden="true"><use href="#i-loop"/></svg><span><strong>Try until it works</strong><span>Do the work, check it, and retry up to 3 times</span></span></button>
+              <button type="button" data-starter="checked"><svg class="glyph k-skill" aria-hidden="true"><use href="#i-skill"/></svg><span><strong>Skill with a check</strong><span>Follow a playbook, check the result, fix and check again</span></span></button>
+              <button type="button" data-starter="roles"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Plan, build, review</strong><span>One agent plans, one builds, one reviews, up to 3 rounds</span></span></button>
+              <button type="button" data-starter="research"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Research, then write</strong><span>Gather facts with sources, then write only from them</span></span></button>
+            </section>
+            <section aria-labelledby="starters-big">
+              <h3 id="starters-big">Big job</h3>
+              <button type="button" data-starter="spec"><svg class="glyph k-if" aria-hidden="true"><use href="#i-if"/></svg><span><strong>Spec first</strong><span>Agree on a written spec, build it, check every scenario</span></span></button>
+            </section>
+            <section aria-labelledby="starters-opinions">
+              <h3 id="starters-opinions">Several opinions</h3>
+              <button type="button" data-starter="council"><svg class="glyph k-agent" aria-hidden="true"><use href="#i-agent"/></svg><span><strong>Council</strong><span>Three helpers answer on their own, a chair merges the best</span></span></button>
+            </section>
           </div>
           <p class="empty-import">Already have agents or skills? <button type="button" class="link-button" data-import>Import them</button></p>
         </div>

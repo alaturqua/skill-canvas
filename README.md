@@ -22,11 +22,23 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 
 Open a folder in VS Code. Then click **New Canvas** in the **Skill Canvas** view in the activity bar, or run **Skill Canvas: New Canvas** from the Command Palette (`Ctrl+Shift+P`, or `Cmd+Shift+P` on a Mac). Give it a name and it opens as `<name>.skillcanvas` in the folder.
 
-Pick a starter to begin with a small working flow, or close the card and drag blocks in from the left.
+Pick a starter to begin with a working flow, or close the card and drag blocks in from the left. The starters are grouped by the size of the job.
 
-![A new canvas: the blocks on the left and five starters: Single agent, Agent with a skill, Try until it works, Skill with a check, and Read-only reviewer](docs/images/starters.png)
+![A new canvas: the blocks on the left and nine starters grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
 
-**Skill with a check** follows a playbook, checks the result, then fixes it and checks again. **Read-only reviewer** is an agent that can look but not change anything.
+| Starter                  | What it does                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| **Single agent**         | One agent that handles one kind of request                                                       |
+| **Agent with a skill**   | An agent that follows a reusable playbook                                                        |
+| **Read-only reviewer**   | An agent that can look but not change anything                                                  |
+| **Try until it works**   | Does the work, checks it, and retries up to 3 times                                              |
+| **Skill with a check**   | Follows a playbook, checks the result, then fixes it and checks again                            |
+| **Plan, build, review**  | One agent plans, one builds, a read-only one reviews; up to 3 rounds until nothing must change   |
+| **Research, then write** | Gathers facts with their sources, then writes only from those notes                              |
+| **Spec first**           | Writes a spec to `spec.md` for you to approve, builds it, then checks it scenario by scenario    |
+| **Council**              | A chair asks three read-only helpers for their views on their own, then ranks and merges them    |
+
+The bigger starters come with their instructions filled in, so they work as they are. Change them to fit your project. **Council** uses a lead with helpers rather than separate steps, because a workflow runs its steps one after another. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
 
 ### 2. Sketch with blocks
 
