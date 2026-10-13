@@ -365,6 +365,21 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     warnings.push({ nodeId: n.id, text });
   }
 
+  if (flow.order.length >= 2) {
+    const written = new Set(flow.order.flatMap((n) => list(n.writes)));
+    for (const n of flow.order) {
+      const missing = list(n.reads).filter((f) => !written.has(f));
+      if (missing.length) {
+        warnings.push({
+          nodeId: n.id,
+          field: 'reads',
+          level: 'tip',
+          text: `No step writes ${missing.map((f) => `"${f}"`).join(', ')}. Add it to the step that creates it, or make sure it exists before the workflow runs.`,
+        });
+      }
+    }
+  }
+
   let command: string | undefined;
   if (flow.order.length >= 2) {
     const description = model.description?.trim() || workflowDescription(wfName, flow.order);
@@ -706,6 +721,11 @@ function workflowBody(
     const t = oneLine(s);
     return t ? ` ${prefix}${t}${/[.?!]$/.test(t) ? '' : '.'}` : '';
   };
+  // Files a step reads and writes, so steps hand work to each other through the same files.
+  const files = (s: string | undefined) => join(list(s).map((f) => `\`${f}\``));
+  const handoff = (n: CanvasNode, read: string, write: string) =>
+    (list(n.reads).length ? ` ${read} ${files(n.reads)} first.` : '') +
+    (list(n.writes).length ? ` ${write} ${files(n.writes)}.` : '');
   const agentWord = target === 'claude' ? 'subagent' : 'custom agent';
   // Bold step title, ending in a period unless the name already ends in punctuation.
   const title = (prefix: string, name: string) => `**${prefix}${name}${/[.?!:]$/.test(name) ? '' : '.'}**`;
@@ -715,9 +735,9 @@ function workflowBody(
       case 'input':
         return `${title('Start: ', n.name)}${note(n.prompt, 'The user provides: ')} ${then(n)}`;
       case 'agent':
-        return `${title('', n.name)} Delegate to the \`${names[n.id]}\` ${agentWord}. ${then(n)}`;
+        return `${title('', n.name)} Delegate to the \`${names[n.id]}\` ${agentWord}.${handoff(n, 'Tell it to read', 'Tell it to save its result to')} ${then(n)}`;
       case 'skill':
-        return `${title('', n.name)} Use the \`${names[n.id]}\` skill. ${then(n)}`;
+        return `${title('', n.name)} Use the \`${names[n.id]}\` skill.${handoff(n, 'Read', 'Save the result to')} ${then(n)}`;
       case 'tool':
         return `${title('Tool: ', n.name)}${note(n.prompt)} ${then(n)}`;
       case 'output':

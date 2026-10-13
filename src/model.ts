@@ -41,6 +41,10 @@ export interface CanvasNode {
   condition?: string;
   /** Loop: maximum iterations. */
   maxIterations?: number;
+  /** Agent/skill: files this step reads before it starts, comma-separated. Said in its workflow step. */
+  reads?: string;
+  /** Agent/skill: files this step writes for later steps, comma-separated. Said in its workflow step. */
+  writes?: string;
   /** Agent/skill: frontmatter the canvas doesn't edit, kept as written (YAML), so nothing is lost on export. */
   extra?: string;
 

@@ -807,14 +807,14 @@
     // Plan, build, review: separate roles for each phase, with review rounds capped at 3.
     roles: () => [
       { key: 'i', kind: 'input', name: 'Task', x: 0, y: 48 },
-      { key: 'p', kind: 'agent', name: 'Plan', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob',
+      { key: 'p', kind: 'agent', name: 'Plan', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, Write', writes: 'plan.md',
         description: 'Use first on a task that touches several files, to plan before changing any code.',
-        prompt: 'Read the task and the code it touches. Write a short plan: the files to change, in what order, and how to test each part. Note anything risky or unclear.\n\nDo not change any code.' },
+        prompt: 'Read the task and the code it touches. Write a short plan to `plan.md`: the files to change, in what order, and how to test each part. Note anything risky or unclear.\n\nDo not change any code.' },
       { key: 'l', kind: 'loop', name: 'Up to 3 rounds', x: 432, y: 48, maxIterations: 3 },
-      { key: 'b', kind: 'agent', name: 'Build', x: 648, y: 0,
+      { key: 'b', kind: 'agent', name: 'Build', x: 648, y: 0, reads: 'plan.md',
         description: 'Use after a plan is ready, to build it and to fix what a review asks to change.',
         prompt: 'Follow the plan. If a review came back, fix every point it marks as "must change". Run the tests before you finish, and report what you changed.' },
-      { key: 'r', kind: 'agent', name: 'Review', x: 864, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob',
+      { key: 'r', kind: 'agent', name: 'Review', x: 864, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob', reads: 'plan.md',
         description: 'Use after a change is built, to review it against the plan before it is finished.',
         prompt: 'Review the change against the task and the plan. List each point as "must change" or "could improve", with the file and line.\n\nDo not change anything.' },
       { key: 'c', kind: 'if', name: 'Approved?', x: 1080, y: 0, condition: 'The review lists nothing that must change' },
@@ -825,10 +825,10 @@
     // Research, then write: facts with sources first, so the text only says what was found.
     research: () => [
       { key: 'i', kind: 'input', name: 'Topic', x: 0, y: 0 },
-      { key: 'r', kind: 'agent', name: 'Research', x: 240, y: 0, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, WebSearch, WebFetch',
+      { key: 'r', kind: 'agent', name: 'Research', x: 240, y: 0, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, WebSearch, WebFetch, Write', writes: 'notes.md',
         description: 'Use to gather facts and sources on a topic before anything is written about it.',
-        prompt: 'Find what is known about the topic. For each finding, note its source (a file path or a link) and how sure you are. Keep facts and opinions apart, and say what you could not find.\n\nDo not write the final text.' },
-      { key: 'w', kind: 'agent', name: 'Write', x: 480, y: 0,
+        prompt: 'Find what is known about the topic and save your notes to `notes.md`. For each finding, note its source (a file path or a link) and how sure you are. Keep facts and opinions apart, and say what you could not find.\n\nDo not write the final text.' },
+      { key: 'w', kind: 'agent', name: 'Write', x: 480, y: 0, reads: 'notes.md',
         description: 'Use after the research is done, to turn its notes into a finished text.',
         prompt: 'Write the text from the research notes only. Every claim needs a source from the notes; leave out anything without one. Start with the answer, then give the details.' },
       { key: 'o', kind: 'output', name: 'Report', x: 720, y: 0 },
@@ -837,15 +837,15 @@
     // Spec first: agree on what to build, build it, then check it scenario by scenario.
     spec: () => [
       { key: 'i', kind: 'input', name: 'Feature request', x: 0, y: 48 },
-      { key: 'w', kind: 'agent', name: 'Write the spec', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, Write',
+      { key: 'w', kind: 'agent', name: 'Write the spec', x: 216, y: 48, focus: true, toolsMode: 'only', tools: 'Read, Grep, Glob, Write', writes: 'spec.md',
         description: 'Use to turn a feature request into a written spec before any code changes.',
         prompt: 'Read the request and the code it touches. Write the spec to `spec.md`:\n\n- **Why**: the problem, in two or three sentences.\n- **Requirements**: a `### Requirement:` heading for each, with scenarios written as WHEN … THEN ….\n- **Out of scope**: what this change leaves alone.\n\nAsk about anything you would otherwise have to guess. Do not change any code.' },
       { key: 'a', kind: 'if', name: 'Spec approved?', x: 432, y: 48, condition: 'The user read the spec and approved it' },
       { key: 'l', kind: 'loop', name: 'Up to 3 tries', x: 648, y: 48, maxIterations: 3 },
-      { key: 'b', kind: 'agent', name: 'Build it', x: 864, y: 0,
+      { key: 'b', kind: 'agent', name: 'Build it', x: 864, y: 0, reads: 'spec.md',
         description: 'Use after the spec in spec.md is approved, to build the change.',
         prompt: 'Read `spec.md` and make the smallest change that meets every requirement. Where the project has tests, add one for each scenario. If the spec is unclear, stop and say so instead of guessing.' },
-      { key: 'v', kind: 'agent', name: 'Check against the spec', x: 1080, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob, Bash',
+      { key: 'v', kind: 'agent', name: 'Check against the spec', x: 1080, y: 0, toolsMode: 'only', tools: 'Read, Grep, Glob, Bash', reads: 'spec.md',
         description: 'Use after a change is built, to check it against spec.md.',
         prompt: 'Read `spec.md` and the change. For each scenario, say whether it passes and how you know: a test, a run, or the code. List every scenario that fails and what is missing.\n\nDo not change anything.' },
       { key: 'c', kind: 'if', name: 'Every scenario passes?', x: 1296, y: 0, condition: 'The check found no failing scenario' },
@@ -1692,6 +1692,12 @@
     say(toId ? `${aria.split(',')[0]}: ${nameOf(toId)}.` : 'Connection removed.');
   }
 
+  // Files a step reads and writes, so steps of a workflow can hand work to each other.
+  const HANDOFF = [
+    { key: 'reads', label: 'Reads files', hint: 'Comma-separated, e.g. spec.md. In a workflow, this step is told to read them first.' },
+    { key: 'writes', label: 'Writes files', hint: 'Comma-separated, e.g. plan.md. In a workflow, this step is told to save its result there, for later steps.' },
+  ];
+
   function fieldsFor(n) {
     const claude = target() === 'claude';
     const NAME = { key: 'name', label: 'Name' };
@@ -1701,6 +1707,7 @@
           NAME,
           { key: 'description', label: "What it's for", type: 'textarea', rows: 2, hint: 'The AI reads this to decide when to hand work to this agent.', placeholder: 'e.g. Fixes reported bugs and checks that the tests pass' },
           { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'How the agent should work, in your own words.', placeholder: 'e.g. Reproduce the bug first. Keep changes small.' },
+          ...HANDOFF,
           () => toolsSection(n),
           () => skillsSection(n),
           () => agentsSection(n),
@@ -1722,6 +1729,7 @@
           NAME,
           { key: 'description', label: "What it's for", type: 'textarea', rows: 2, counter: DESCRIPTION_MAX, hint: 'The AI reads this to decide when to use this skill. Say what it does and when to use it.', placeholder: 'e.g. Writes release notes from a list of changes. Use when the user asks for release notes.' },
           { key: 'prompt', label: 'Instructions', type: 'textarea', rows: 7, hint: 'The steps or rules to follow whenever this skill is used. Keep them short: the AI already knows the basics.' },
+          ...HANDOFF,
           () => referencesSection(n),
           () => evalsSection(n),
           () => otherFilesSection(n),

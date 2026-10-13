@@ -30,7 +30,7 @@ Pick a starter to begin with a working flow, or close the card and drag blocks i
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
 | **Single agent**         | One agent that handles one kind of request                                                       |
 | **Agent with a skill**   | An agent that follows a reusable playbook                                                        |
-| **Read-only reviewer**   | An agent that can look but not change anything                                                  |
+| **Read-only reviewer**   | An agent that can look but not change anything                                                   |
 | **Try until it works**   | Does the work, checks it, and retries up to 3 times                                              |
 | **Skill with a check**   | Follows a playbook, checks the result, then fixes it and checks again                            |
 | **Plan, build, review**  | One agent plans, one builds, a read-only one reviews; up to 3 rounds until nothing must change   |
@@ -78,6 +78,7 @@ The toolbar counts anything still to fix, like an agent without instructions or 
 - **Decisions and retries:** an **If** block has a *yes* and a *no* path. A **Loop** has *repeat* and *done*.
 - **Skills and tools:** drag from the small handle under an agent to a Skill or Tool block. The dotted **uses** link gives that agent the skill.
 - **Helper agents:** drag from that handle to another Agent block, or use **Agents it can hand work to** in the details panel. The first agent becomes a lead that can pass parts of the work to its helpers. See [Workflows, leads and helpers](#workflows-leads-and-helpers).
+- **Hand work over in files:** fill in **Reads files** and **Writes files** on an agent or skill, like `plan.md` or `spec.md`. The workflow tells each step which files to read first and where to save its result. A step that reads a file no other step writes gets a tip.
 - **Tidy up:** the **Arrange** buttons at the bottom right lay the board out left to right or top to bottom. The step numbers follow along.
 
 ![A bug-fix workflow: Bug report, Up to 3 tries, Fix & test, Tests pass?, then Pull request or back to try again, with a Write PR notes skill linked to the agent](docs/images/connect.png)

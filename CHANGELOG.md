@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Spec first:** write a spec with WHEN/THEN scenarios to `spec.md`, get it approved, build it, and check every scenario. Inspired by [OpenSpec](https://github.com/Fission-AI/OpenSpec).
   - **Council:** a chair asks three read-only helpers on their own, then ranks and merges their answers. Inspired by [LLM Council](https://github.com/karpathy/llm-council).
 
+- **Reads files** and **Writes files** on agents and skills. The workflow tells each step which files to read first and where to save its result, so steps hand work to each other through files like `plan.md`. A step that reads a file no step writes gets a tip. The new starters use it.
+
 ### Changed
 
 - The starters are grouped by the size of the job: Small job, Medium job, Big job and Several opinions.
