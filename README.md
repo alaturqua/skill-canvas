@@ -13,7 +13,8 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 - **See the whole workflow.** Steps, decisions and retries sit on one board, numbered in the order they run.
 - **Real files, not a new format.** You get standard agent and skill files in the places Claude Code and GitHub Copilot look for them. They keep working without Skill Canvas installed.
 - **One sketch, two tools.** Switch between Claude Code and GitHub Copilot at any time. The same board prints both.
-- **Bring what you have.** Import the agents and skills you already wrote, edit them on the board, and export them back to the same files. Settings the board doesn't show are kept as they are.
+- **Bring what you have.** Import the agents and skills you already wrote, edit them on the board, and export them back to the same files. Settings the board doesn't show are kept as they are. Link the plugins you installed in Claude Code, or copy agents and skills from any GitHub repository or marketplace.
+- **Start from a proven shape.** Templates for every size of job, from a single agent to a spec-first build or a council of reviewers.
 - **Good skills by default.** Every block is checked against Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices), with plain tips on how to make it better.
 
 ## Quick start
@@ -24,7 +25,7 @@ Open a folder in VS Code. Then click **New Canvas** in the **Skill Canvas** view
 
 Pick a template to begin with a working flow, or close the card and drag blocks in from the left. The templates are grouped by the size of the job. Click **Templates** in the block list to open them again at any time: on a board with blocks, the template goes below them. **Clear board** removes every block; undo brings them back.
 
-![A new canvas: the blocks on the left and nine templates grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
+![A new canvas: the blocks on the left with the Templates, Import and Clear board buttons, and nine templates grouped as Small job, Medium job, Big job and Several opinions](docs/images/starters.png)
 
 | Template                 | What it does                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
