@@ -1,17 +1,22 @@
+# Dependencies and build output
 node_modules/
 out/
+_site/
 *.vsix
+
+# Tests and local tools
 .vscode-test/
+.playwright-mcp/
+.impeccable/
+.claude/settings.local.json
+.venv/
+
+# Sandbox: only the example canvases are shared
 sandbox/*
 !sandbox/*.skillcanvas
-.impeccable/live/
-.impeccable/config.local.json
-.claude/settings.local.json
-*.log
+
+# Secrets, logs and OS files
 .env*
+*.log
 .DS_Store
 Thumbs.db
-.venv/
-.impeccable/
-_site/
-.playwright-mcp/
