@@ -110,6 +110,18 @@ Nothing is lost on the way back:
 
 ![An imported Code reviewer agent linked to its Code standards skill, with the skill's file previewed in the details panel](docs/images/import.png)
 
+### Download from GitHub or a marketplace
+
+Pick **From a GitHub repository or marketplace…** at the top of the import list, then enter a repository like `anthropics/skills`, a marketplace like `anthropics/claude-plugins-official`, or a link to a folder in one. Skill Canvas lists every agent and skill it finds, grouped by folder (one group per plugin in a marketplace), with the repository's license in the title.
+
+What you pick is copied onto the board, where you can read and change it before you export:
+
+- The agent or skill file, its other Markdown files and its test scenarios come along. Scripts and other files are named but not downloaded; get them from the repository if a skill needs them.
+- Each block remembers the repository and commit it came from, shown at the top of its details.
+- Nothing is written until you export. If a file with the same name is already in your project, the export asks before replacing it.
+
+If you're signed in to GitHub in VS Code, that account is used, so private repositories work and the hourly limit is higher. Skill Canvas never asks you to sign in.
+
 ### Use plugins you installed in Claude Code
 
 Plugins you installed with `/plugin install` also appear in the import list, one group per plugin. Their agents and skills are **linked, not copied**. On the board they show the plugin's name, like `Skill · superpowers`, and the export refers to them as `superpowers:brainstorming`. Use them as steps, give them to an agent, or make them helpers. Skill Canvas never writes or changes a plugin's files, so updating the plugin keeps working.

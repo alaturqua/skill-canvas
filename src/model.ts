@@ -41,6 +41,8 @@ export interface CanvasNode {
   condition?: string;
   /** Loop: maximum iterations. */
   maxIterations?: number;
+  /** Agent/skill: where it was downloaded from, e.g. `owner/repo@1a2b3c4:skills/pdf/SKILL.md`. */
+  source?: string;
   /** Agent/skill: the installed Claude Code plugin it comes from. Linked as `plugin:name`; its files are never written. */
   plugin?: string;
   /** Agent/skill: files this step reads before it starts, comma-separated. Said in its workflow step. */

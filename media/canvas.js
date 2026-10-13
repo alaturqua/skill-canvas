@@ -1817,6 +1817,10 @@
     const k = kindOf(n);
     into.append(head(n.kind, n.name || k.label, n.plugin ? `${k.label} · ${n.plugin} plugin` : k.label));
     const body = h('div', { class: 'props-body' }, h('div', { class: 'general-warnings', hidden: true }));
+    if (n.source) {
+      const [repo, path] = n.source.split(':');
+      body.append(h('small', { class: 'hint', text: `Downloaded from ${repo.replace('@', ' at commit ')}, ${path}. Check its license before you share it.` }));
+    }
     for (const spec of fieldsFor(n)) {
       const part = typeof spec === 'function' ? spec() : field(n, spec);
       if (part) body.append(part);

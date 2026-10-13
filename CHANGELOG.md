@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Council:** a chair asks three read-only helpers on their own, then ranks and merges their answers. Inspired by [LLM Council](https://github.com/karpathy/llm-council).
 - **Reads files** and **Writes files** on agents and skills. The workflow tells each step which files to read first and where to save its result, so steps hand work to each other through files like `plan.md`. A step that reads a file no step writes gets a tip. The new templates use it.
 - **Plugins installed in Claude Code** appear in the import list. Their agents and skills are linked, not copied: the export refers to them as `plugin:name` and never writes their files.
+- **Download from GitHub or a marketplace.** At the top of the import list: enter a repository, a marketplace or a folder link, and pick the agents and skills to copy onto the board. Markdown and test scenarios come along; scripts are named, not downloaded. Each block remembers the repository and commit it came from.
 - **Templates** and **Clear board** buttons in the block list. Templates opens the templates at any time and adds the one you pick below the board; Clear board removes every block, and undo brings them back.
 
 ### Changed

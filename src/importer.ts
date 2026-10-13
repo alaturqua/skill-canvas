@@ -13,6 +13,8 @@ export interface FoundFile {
   extras?: { path: string; text?: string }[];
   /** The installed plugin it comes from. It becomes a link to `plugin:name`, not a copy. */
   plugin?: string;
+  /** Where it was downloaded from. Its file isn't in the project, so the canvas doesn't own one there. */
+  source?: string;
 }
 
 export interface ImportResult {
@@ -148,10 +150,11 @@ export function importFiles(files: FoundFile[], existing: CanvasNode[], newId: (
       references: references.length ? references.map((r) => ({ path: r.path, when: r.when, content: r.content })) : undefined,
       evals,
       otherFiles: otherFiles.length ? otherFiles : undefined,
+      source: f.source,
     };
     nodes.push(node);
     skillIds.set(slug(node.name), node.id);
-    if (exportPath('skill', node.name, f.target) === f.path) {
+    if (!f.source && exportPath('skill', node.name, f.target) === f.path) {
       const folder = f.path.slice(0, -'SKILL.md'.length);
       const written = [...references.map((r) => r.path), ...(evals ? ['evals/evals.json'] : [])];
       owned.push(...[f.path, ...written.map((p) => folder + p)].map((path) => ({ target: f.target, scope: f.scope, path })));
@@ -185,6 +188,7 @@ export function importFiles(files: FoundFile[], existing: CanvasNode[], newId: (
       toolsMode: tools.length ? 'only' : 'all',
       tools: tools.join(', ') || undefined,
       extra: extraOf(raw, editable),
+      source: f.source,
     };
     const other: string[] = [];
     for (const s of [...list(fields.skills), ...named]) {
@@ -204,7 +208,7 @@ export function importFiles(files: FoundFile[], existing: CanvasNode[], newId: (
     if (helpers) {
       delegating.push({ node, names: [...helpers[1].matchAll(/`([^`]+)`/g)].map((m) => m[1]), at: helpers.index });
     }
-    if (exportPath('agent', node.name, f.target) === f.path) {
+    if (!f.source && exportPath('agent', node.name, f.target) === f.path) {
       owned.push({ target: f.target, scope: f.scope, path: f.path });
     }
   }
