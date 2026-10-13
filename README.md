@@ -6,7 +6,7 @@ Draw the workflow with blocks and arrows, answer a few plain questions for each 
 
 [Try it in your browser](https://alaturqua.github.io/skill-canvas/#try) · [Website](https://alaturqua.github.io/skill-canvas/) · [Report an issue](https://github.com/alaturqua/skill-canvas/issues)
 
-![Starting from a starter, filling in an agent (a tip asks to say when to use it, and goes away once it does), filling in its skill and a test scenario, switching to GitHub Copilot, and arranging the blocks top to bottom](docs/images/hero.gif)
+![Starting from a template, filling in an agent (a tip asks to say when to use it, and goes away once it does), filling in its skill and a test scenario, switching to GitHub Copilot, and arranging the blocks top to bottom](docs/images/hero.gif)
 
 ## Why Skill Canvas
 
@@ -101,7 +101,13 @@ Type the workflow's command in Claude Code or GitHub Copilot Chat, for example `
 
 ## Import the agents and skills you already have
 
-Click **Import agents & skills** at the bottom of the block list, or run **Skill Canvas: Import Agents & Skills**. Pick from `.claude` or `.github` in your project, or from your user folder (`~/.claude`, `~/.copilot`). Skills an agent already loads arrive linked to it. Edit them on the board, export, and the same files update in place.
+Click **Import agents & skills** in the block list, or run **Skill Canvas: Import Agents & Skills**. The list has three kinds of sources:
+
+- **Your files:** `.claude` or `.github` in your project, and your user folder (`~/.claude`, `~/.copilot`).
+- **Plugins you installed in Claude Code**, linked rather than copied. See [Use plugins you installed in Claude Code](#use-plugins-you-installed-in-claude-code).
+- **A GitHub repository or marketplace**, copied onto the board. See [Download from GitHub or a marketplace](#download-from-github-or-a-marketplace).
+
+Skills an agent already loads arrive linked to it. Edit them on the board, export, and the same files update in place.
 
 Nothing is lost on the way back:
 
@@ -185,10 +191,21 @@ A skill's extra files and test scenarios go in its folder, next to `SKILL.md`, f
 | `Escape`          | Clear the selection, or close the templates            |
 | `←` and `→`       | On the details panel's edge: make it wider or narrower |
 
+## Commands and settings
+
+| Command or setting                          | Does                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| **Skill Canvas: New Canvas**                | Creates a `.skillcanvas` file in the open folder and opens it         |
+| **Skill Canvas: Export Agents & Skills**    | Writes the open canvas's agents, skills and workflow                  |
+| **Skill Canvas: Import Agents & Skills**    | Brings agents and skills from your files, plugins or GitHub onto it   |
+| `skillCanvas.lint.enabled`                  | Checks `SKILL.md` and agent files you open as text (on by default)    |
+
+Export and Import are also buttons in the canvas's editor title bar.
+
 ## Good to know
 
 - **Your canvas is a file.** A `.skillcanvas` file is plain JSON. Commit it next to the files it makes, so your team can open and change the workflow too.
-- **Nothing leaves your machine.** Skill Canvas only reads and writes files in your workspace and user folder.
+- **Your work stays on your machine.** Skill Canvas reads and writes files in your workspace and user folder. It only goes online when you import from GitHub, to download the list and the files you pick. Nothing is uploaded.
 - **It follows your theme**, including high contrast themes.
 - **Requirements:** VS Code 1.90 or later. To run what you export, you need Claude Code or GitHub Copilot.
 

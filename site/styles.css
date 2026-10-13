@@ -306,6 +306,8 @@ code {
 .card > .magnet:nth-of-type(1) { left: 8%; }
 .card > .magnet:nth-of-type(2) { left: 92%; }
 .card > p { margin-top: 12px; color: var(--ink-2); }
+.card-shot { margin: 22px 0 0; }
+.card-shot img { display: block; width: 100%; height: auto; border: 1px solid #e3e5e8; border-radius: 4px; }
 .table-wrap { margin-top: 22px; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 th, td { padding: 12px 14px; border-bottom: 1px solid #e3e5e8; text-align: left; vertical-align: top; }
