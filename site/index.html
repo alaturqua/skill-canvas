@@ -34,6 +34,7 @@
     <nav class="rail-nav" aria-label="Sections">
       <a href="#try">Try it</a>
       <a href="#how">How it works</a>
+      <a href="#templates">Templates</a>
       <a href="#import">Import</a>
       <a href="#files">Where files go</a>
     </nav>
@@ -145,7 +146,7 @@
           <span class="step-no" aria-hidden="true">1</span>
           <div class="step-note canary">
             <h3>Sketch</h3>
-            <p>Drag blocks onto the board: Input, Agent, Skill, Tool, If, Loop and Output. Or start from a ready-made template, from a single agent to a spec-first build or a council of reviewers.</p>
+            <p>Drag blocks onto the board: Input, Agent, Skill, Tool, If, Loop and Output. Or start from a template: the <strong>Templates</strong> button opens them at any time, and <strong>Clear board</strong> starts over.</p>
           </div>
           <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><rect x="8" y="14" width="30" height="22" rx="3"/><rect x="82" y="14" width="30" height="22" rx="3"/><rect x="45" y="48" width="30" height="22" rx="3"/><path d="M38 25h40M74 21l4 4-4 4M97 36c0 12-8 20-18 22M83 55l-4 3 4 3"/></svg>
         </li>
@@ -161,7 +162,7 @@
           <span class="step-no" aria-hidden="true">3</span>
           <div class="step-note coral">
             <h3>Connect</h3>
-            <p>Arrows set the order. A dotted <em>uses</em> link gives an agent a skill or tool. If and Loop handle yes, no and retries. Arrange tidies it all left to right or top to bottom.</p>
+            <p>Arrows set the order. A dotted <em>uses</em> link gives an agent a skill or tool. If and Loop handle yes, no and retries. Steps can hand work over in files: one writes <code>plan.md</code>, the next reads it. Arrange tidies it all left to right or top to bottom.</p>
           </div>
           <svg class="step-art" viewBox="0 0 120 80" aria-hidden="true"><circle cx="18" cy="24" r="10"/><circle cx="62" cy="24" r="10"/><circle cx="104" cy="24" r="10"/><circle cx="62" cy="64" r="10"/><path d="M28 24h22M46 20l4 4-4 4M72 24h20M88 20l4 4-4 4"/><path class="dots" d="M62 35v18"/></svg>
         </li>
@@ -184,10 +185,38 @@
       </ol>
     </section>
 
+    <section id="templates" class="templates" aria-labelledby="templates-title">
+      <div class="card">
+        <span class="magnet red" aria-hidden="true"></span>
+        <span class="magnet blue" aria-hidden="true"></span>
+        <h2 id="templates-title">Templates for every size of job</h2>
+        <p>Pick one, then make it yours. The bigger ones come with their instructions filled in.</p>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Templates, grouped by the size of the job</caption>
+            <thead><tr><th scope="col">Job</th><th scope="col">Template</th><th scope="col">What it does</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Small</th><td data-label="Template">Single agent</td><td data-label="What it does">One agent for one kind of request</td></tr>
+              <tr><th scope="row">Small</th><td data-label="Template">Agent with a skill</td><td data-label="What it does">An agent that follows a reusable playbook</td></tr>
+              <tr><th scope="row">Small</th><td data-label="Template">Read-only reviewer</td><td data-label="What it does">Looks, but can't change anything</td></tr>
+              <tr><th scope="row">Medium</th><td data-label="Template">Try until it works</td><td data-label="What it does">Does the work, checks it, retries up to 3 times</td></tr>
+              <tr><th scope="row">Medium</th><td data-label="Template">Skill with a check</td><td data-label="What it does">Follows a playbook, checks the result, fixes it</td></tr>
+              <tr><th scope="row">Medium</th><td data-label="Template">Plan, build, review</td><td data-label="What it does">Separate agents plan, build and review, up to 3 rounds</td></tr>
+              <tr><th scope="row">Medium</th><td data-label="Template">Research, then write</td><td data-label="What it does">Facts with sources first, then text only from them</td></tr>
+              <tr><th scope="row">Big</th><td data-label="Template">Spec first</td><td data-label="What it does">A spec in <code>spec.md</code> you approve, built and checked scenario by scenario</td></tr>
+              <tr><th scope="row">Several opinions</th><td data-label="Template">Council</td><td data-label="What it does">Three helpers answer on their own; a chair ranks and merges them</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section id="import" class="import" aria-labelledby="import-title">
       <div class="import-copy">
         <h2 id="import-title">Already have agents and skills?</h2>
-        <p>Import brings them onto the board from <code>.claude</code> or <code>.github</code> in your project, or from your user folder. Skills an agent preloads arrive already linked. Edit them on the board, export, and the same files update in place. Plugins you installed in Claude Code are linked as they are, and agents and skills from any GitHub repository or marketplace can be copied in.</p>
+        <p>Import brings them onto the board from <code>.claude</code> or <code>.github</code> in your project, or from your user folder. Skills an agent preloads arrive already linked. Edit them on the board, export, and the same files update in place.</p>
+        <p><strong>Plugins</strong> you installed in Claude Code are linked as they are, by names like <code>superpowers:brainstorming</code>, and never changed.</p>
+        <p><strong>GitHub and marketplaces:</strong> enter a repository like <code>anthropics/skills</code> and pick agents and skills to copy onto the board. Each one remembers where it came from.</p>
       </div>
       <figure class="import-art" aria-hidden="true">
         <div class="stack">
