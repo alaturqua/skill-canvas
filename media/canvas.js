@@ -363,7 +363,7 @@
   function nodeLabel(n, warnings) {
     const k = kindOf(n);
     const step = analysis && analysis.steps && analysis.steps[n.id];
-    const parts = [`${step ? `Step ${step}, ` : ''}${k.label} block: ${n.name}.`];
+    const parts = [`${step ? `Step ${step}, ` : ''}${k.label} block${n.plugin ? ` from the ${n.plugin} plugin` : ''}: ${n.name}.`];
     const outs = nextEdges().filter((e) => e.from === n.id && byId(e.to));
     if (outs.length) {
       parts.push(outs.map((e) => {
@@ -397,7 +397,7 @@
     el('rect', { class: 'ring', x: -4, y: -4, width: W + 8, height: H + 8, rx: 11 }, g);
     el('rect', { class: 'body', width: W, height: H, rx: 8 }, g);
     el('use', { href: `#i-${n.kind}`, x: 12, y: 11, width: 16, height: 16, class: 'glyph' }, g);
-    el('text', { class: 'kind', x: 34, y: 23, text: k.label }, g);
+    el('text', { class: 'kind', x: 34, y: 23, text: n.plugin ? `${k.label} · ${n.plugin}` : k.label }, g);
     // A branch's output is labelled (yes/no, repeat/done) until it's connected;
     // after that the label sits on the connection instead, so it shows once.
     const connected = (o) => nextEdges().some((e) => e.from === n.id && portOf(n, e.fromPort) === o.id);
@@ -1698,8 +1698,17 @@
     { key: 'writes', label: 'Writes files', hint: 'Comma-separated, e.g. plan.md. In a workflow, this step is told to save its result there, for later steps.' },
   ];
 
+  // An agent or skill from an installed plugin is only linked, so there's nothing to edit.
+  function pluginSection(n) {
+    return h('div', { class: 'field' },
+      h('h3', { text: "What it's for" }),
+      h('p', { text: n.description || 'No description.' }),
+      h('small', { class: 'hint', text: `Installed with the ${n.plugin} plugin in Claude Code. Skill Canvas refers to it as ${n.plugin}:${n.name} and never writes its files. To change it, change the plugin.` }));
+  }
+
   function fieldsFor(n) {
     const claude = target() === 'claude';
+    if (n.plugin) return [() => pluginSection(n), () => (model.edges.some((e) => isUses(e) && e.to === n.id) ? usedBySection(n) : null)];
     const NAME = { key: 'name', label: 'Name' };
     switch (n.kind) {
       case 'agent':
@@ -1771,7 +1780,7 @@
 
   function nodePanel(n, into) {
     const k = kindOf(n);
-    into.append(head(n.kind, n.name || k.label, k.label));
+    into.append(head(n.kind, n.name || k.label, n.plugin ? `${k.label} · ${n.plugin} plugin` : k.label));
     const body = h('div', { class: 'props-body' }, h('div', { class: 'general-warnings', hidden: true }));
     for (const spec of fieldsFor(n)) {
       const part = typeof spec === 'function' ? spec() : field(n, spec);

@@ -11,6 +11,8 @@ export interface FoundFile {
   scope: Scope;
   /** Skills: the other files in the skill's folder, relative to it. `text` for Markdown and evals/evals.json. */
   extras?: { path: string; text?: string }[];
+  /** The installed plugin it comes from. It becomes a link to `plugin:name`, not a copy. */
+  plugin?: string;
 }
 
 export interface ImportResult {
@@ -99,8 +101,13 @@ export function importFiles(files: FoundFile[], existing: CanvasNode[], newId: (
     }
   }
 
-  const skills = files.filter((f) => f.kind === 'skill');
-  const agents = files.filter((f) => f.kind === 'agent');
+  // A plugin's agents and skills are only linked: a block with the name and what it's for.
+  for (const f of files.filter((f) => f.plugin)) {
+    const name = fileName(f);
+    nodes.push({ id: newId(), kind: f.kind, name, x: 0, y: 0, description: str(parseFile(f.text).fields.description), plugin: f.plugin });
+  }
+  const skills = files.filter((f) => f.kind === 'skill' && !f.plugin);
+  const agents = files.filter((f) => f.kind === 'agent' && !f.plugin);
   for (const f of skills) {
     const { fields, body: text, raw } = parseFile(f.text);
     const name = fileName(f);

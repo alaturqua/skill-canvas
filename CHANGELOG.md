@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Reads files** and **Writes files** on agents and skills. The workflow tells each step which files to read first and where to save its result, so steps hand work to each other through files like `plan.md`. A step that reads a file no step writes gets a tip. The new starters use it.
 
+- **Plugins installed in Claude Code** appear in the import list. Their agents and skills are linked, not copied: the export refers to them as `plugin:name` and never writes their files.
+
 ### Changed
 
 - The starters are grouped by the size of the job: Small job, Medium job, Big job and Several opinions.

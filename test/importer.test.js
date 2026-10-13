@@ -244,3 +244,22 @@ test('round trip: imported blocks export back to the same files and settings', (
   assert.equal(a.body, 'You are a code reviewer.');
   assert.equal(parseFile(skillFile.content).fields['allowed-tools'], 'Read, Bash(npm run lint:*)');
 });
+
+test('plugin agents and skills are linked by plugin:name, never written', () => {
+  const plugged = { path: 'skills/write_plan/SKILL.md', kind: 'skill', target: 'claude', scope: 'user', plugin: 'superpowers',
+    text: '---\nname: write_plan\ndescription: Writes plans. Use before coding.\n---\n\nLong instructions.' };
+  const r = importFiles([plugged, reviewer], [], id);
+  const skill = r.nodes.find((x) => x.plugin);
+  // The exact name, so the link matches what Claude Code knows it as.
+  assert.deepEqual([skill.name, skill.description, skill.prompt], ['write_plan', 'Writes plans. Use before coding.', undefined]);
+  assert.ok(!r.owned.some((o) => o.path.includes('write_plan')));
+
+  const agent = r.nodes.find((x) => x.kind === 'agent');
+  const model = { version: 1, nodes: r.nodes.map((x, i) => ({ ...x, x: i * 240 })), edges: [{ id: 'u', kind: 'uses', from: agent.id, to: skill.id }] };
+  const claude = buildExport(model, 'flow', 'claude');
+  assert.deepEqual(claude.files.map((f) => f.path), ['agents/code-reviewer.md']);
+  assert.match(claude.files[0].content, /superpowers:write_plan/);
+  assert.ok(!claude.warnings.some((w) => w.nodeId === skill.id));
+  const copilot = buildExport(model, 'flow', 'copilot');
+  assert.ok(copilot.warnings.some((w) => w.nodeId === skill.id && /Copilot can't use/.test(w.text)));
+});

@@ -196,6 +196,11 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     if (n.kind !== 'agent' && n.kind !== 'skill') {
       continue;
     }
+    // A plugin's agents and skills are known as plugin:name, and don't take a name here.
+    if (n.plugin) {
+      names[n.id] = `${n.plugin}:${n.name.trim()}`;
+      continue;
+    }
     const base = slug(n.name) || n.kind;
     let name = base;
     for (let i = 2; taken[n.kind].has(name); i++) {
@@ -214,6 +219,13 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
     }
     const name = names[n.id];
     const warn = (field: string, text: string) => warnings.push({ nodeId: n.id, field, text });
+    // Installed with a plugin: linked by name, its files are never written.
+    if (n.plugin) {
+      if (target === 'copilot') {
+        warnings.push({ nodeId: n.id, text: `Comes from the ${n.plugin} plugin for Claude Code, which GitHub Copilot can't use.` });
+      }
+      continue;
+    }
     const check = (issues: LintIssue[]) =>
       issues.forEach((i) => warnings.push({ nodeId: n.id, field: LINT_FIELDS[i.key] ?? i.key, text: i.text, level: i.level }));
     // An empty description is reported by the checks below.
@@ -359,7 +371,7 @@ export function buildExport(model: CanvasModel, fallbackName: string, target: Ta
   const flow = workflowSteps(model.nodes, next, uses);
   for (const n of flow.unreachable) {
     const text =
-      n.kind === 'agent' || n.kind === 'skill'
+      (n.kind === 'agent' || n.kind === 'skill') && !n.plugin
         ? `Not connected to the other steps. It's still saved as its own ${n.kind}.`
         : 'Not connected to the other steps, so it is left out.';
     warnings.push({ nodeId: n.id, text });

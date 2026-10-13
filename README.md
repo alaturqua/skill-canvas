@@ -110,6 +110,12 @@ Nothing is lost on the way back:
 
 ![An imported Code reviewer agent linked to its Code standards skill, with the skill's file previewed in the details panel](docs/images/import.png)
 
+### Use plugins you installed in Claude Code
+
+Plugins you installed with `/plugin install` also appear in the import list, one group per plugin. Their agents and skills are **linked, not copied**. On the board they show the plugin's name, like `Skill · superpowers`, and the export refers to them as `superpowers:brainstorming`. Use them as steps, give them to an agent, or make them helpers. Skill Canvas never writes or changes a plugin's files, so updating the plugin keeps working.
+
+Plugins are a Claude Code feature, so a board that uses them shows a warning when you switch to GitHub Copilot.
+
 ## Best-practice checks
 
 Skill Canvas checks every agent and skill against Anthropic's [skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) and the Claude Code reference.

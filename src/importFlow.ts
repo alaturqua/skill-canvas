@@ -10,6 +10,8 @@ interface Location {
   scope: Scope;
   root: vscode.Uri;
   label: string;
+  /** Set for an installed Claude Code plugin: its agents and skills are linked, not copied. */
+  plugin?: string;
 }
 
 type Found = FoundFile & { location: Location; dir?: vscode.Uri };
@@ -45,6 +47,29 @@ async function readText(uri: vscode.Uri) {
   }
 }
 
+/**
+ * Plugins installed in Claude Code, from its list in ~/.claude/plugins.
+ * shortcut: reads the default agents/ and skills/ folders only, not custom paths in plugin.json; upgrade if plugins use them.
+ */
+async function pluginLocations(): Promise<Location[]> {
+  const list = await readText(vscode.Uri.file(path.join(os.homedir(), '.claude', 'plugins', 'installed_plugins.json')));
+  let plugins: Record<string, { installPath?: unknown }[]> = {};
+  try {
+    plugins = JSON.parse(list ?? '{}').plugins ?? {};
+  } catch {
+    return [];
+  }
+  const out: Location[] = [];
+  for (const [key, installs] of Object.entries(plugins)) {
+    const plugin = key.split('@')[0];
+    const at = Array.isArray(installs) ? installs.find((i) => typeof i?.installPath === 'string')?.installPath : undefined;
+    if (plugin && typeof at === 'string' && !out.some((l) => l.plugin === plugin)) {
+      out.push({ target: 'claude', scope: 'user', root: vscode.Uri.file(at), label: `Installed plugin · ${plugin} (linked, not copied)`, plugin });
+    }
+  }
+  return out;
+}
+
 /** Limits for reading a skill's folder: how deep, how many files, and how big a Markdown file to read. */
 const FOLDER_DEPTH = 3;
 const FOLDER_FILES = 200;
@@ -76,7 +101,7 @@ export async function skillFolder(dir: vscode.Uri): Promise<{ path: string; text
 /** Agents (`agents/*.md`, or `*.agent.md` for Copilot) and skills (`skills/<name>/SKILL.md`). */
 async function scan(folder: vscode.WorkspaceFolder | undefined): Promise<Found[]> {
   const found: Found[] = [];
-  for (const location of locations(folder)) {
+  for (const location of [...locations(folder), ...(await pluginLocations())]) {
     const agentFile = location.target === 'claude' ? /\.md$/i : /\.agent\.md$/i;
     for (const [name, type] of await readDir(vscode.Uri.joinPath(location.root, 'agents'))) {
       if (type !== vscode.FileType.File || !agentFile.test(name)) {
@@ -84,7 +109,7 @@ async function scan(folder: vscode.WorkspaceFolder | undefined): Promise<Found[]
       }
       const text = await readText(vscode.Uri.joinPath(location.root, 'agents', name));
       if (text !== undefined) {
-        found.push({ path: `agents/${name}`, text, kind: 'agent', target: location.target, scope: location.scope, location });
+        found.push({ path: `agents/${name}`, text, kind: 'agent', target: location.target, scope: location.scope, location, plugin: location.plugin });
       }
     }
     for (const [name, type] of await readDir(vscode.Uri.joinPath(location.root, 'skills'))) {
@@ -94,7 +119,7 @@ async function scan(folder: vscode.WorkspaceFolder | undefined): Promise<Found[]
       const dir = vscode.Uri.joinPath(location.root, 'skills', name);
       const text = await readText(vscode.Uri.joinPath(dir, 'SKILL.md'));
       if (text !== undefined) {
-        found.push({ path: `skills/${name}/SKILL.md`, text, kind: 'skill', target: location.target, scope: location.scope, location, dir });
+        found.push({ path: `skills/${name}/SKILL.md`, text, kind: 'skill', target: location.target, scope: location.scope, location, dir, plugin: location.plugin });
       }
     }
   }
@@ -111,13 +136,13 @@ export async function pickImports(
   const found = await scan(folder);
   if (!found.length) {
     vscode.window.showInformationMessage(
-      'No agents or skills found. Skill Canvas looks in .claude and .github in this project, and in ~/.claude and ~/.copilot.'
+      'No agents or skills found. Skill Canvas looks in .claude and .github in this project, in ~/.claude and ~/.copilot, and in plugins installed in Claude Code.'
     );
     return;
   }
 
   const onCanvas = new Set(
-    model.nodes.filter((n) => n.kind === 'agent' || n.kind === 'skill').map((n) => `${n.kind}:${slug(n.name)}`)
+    model.nodes.filter((n) => n.kind === 'agent' || n.kind === 'skill').map((n) => n.plugin ? `${n.kind}:${n.plugin}:${n.name}` : `${n.kind}:${slug(n.name)}`)
   );
   type Item = vscode.QuickPickItem & { file?: Found };
   const items: Item[] = [];
@@ -129,15 +154,16 @@ export async function pickImports(
     }
     const name = fileName(f);
     const { fields, body } = parseFile(f.text);
-    const already = onCanvas.has(`${f.kind}:${slug(name)}`);
+    const already = onCanvas.has(f.plugin ? `${f.kind}:${f.plugin}:${name}` : `${f.kind}:${slug(name)}`);
     // Workflow skills Skill Canvas wrote itself would come back as one plain skill.
     const generated = f.kind === 'skill' && body.includes(WORKFLOW_MARKER);
     const description = Array.isArray(fields.description) ? fields.description.join(', ') : fields.description;
     items.push({
-      label: `${f.kind === 'agent' ? '$(account)' : '$(book)'} ${humanize(name)}`,
+      label: `${f.kind === 'agent' ? '$(account)' : '$(book)'} ${f.plugin ? `${f.plugin}:${name}` : humanize(name)}`,
       description: [f.kind, already && 'already on the canvas', generated && 'a workflow made by Skill Canvas'].filter(Boolean).join(' · '),
       detail: shorten(description?.trim() || 'No description', 110),
-      picked: !already && !generated,
+      // Plugins bring many blocks, so only what's picked from them comes along.
+      picked: !already && !generated && !f.plugin,
       file: f,
     });
   }
@@ -155,7 +181,7 @@ export async function pickImports(
   }
   // Only the chosen skills' folders are read.
   for (const f of files) {
-    if (f.dir) {
+    if (f.dir && !f.plugin) {
       f.extras = await skillFolder(f.dir);
     }
   }
