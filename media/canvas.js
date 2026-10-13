@@ -883,10 +883,13 @@
     const ids = {};
     let focus = null;
     // On a board with blocks, the template goes below them.
+    const items = STARTERS[key]();
+    // On an empty board, a template with a loop is arranged like the Arrange buttons do: its back arrows need the room.
+    const tidy = !model.nodes.length && items.some((i) => i.kind === 'loop');
     const dx = model.nodes.length ? Math.min(...model.nodes.map((n) => n.x)) : 0;
     const dy = model.nodes.length ? Math.max(...model.nodes.map((n) => n.y)) + H + 120 : 0;
     templatesOpen = false;
-    for (const item of STARTERS[key]()) {
+    for (const item of items) {
       if (Array.isArray(item)) {
         const [from, to, port] = item;
         model.edges.push(port === 'uses' ? { id: uid(), kind: 'uses', from: ids[from], to: ids[to] } : { id: uid(), from: ids[from], fromPort: port || 'out', to: ids[to] });
@@ -900,11 +903,22 @@
         if (f) focus = node.id;
       }
     }
+    if (tidy) {
+      const pos = layout(model.direction || 'LR');
+      for (const n of model.nodes) {
+        const p = pos.get(n.id);
+        if (p) {
+          n.x = p.x;
+          n.y = p.y;
+        }
+      }
+    }
     sel = focus ? { type: 'node', id: focus } : null;
     save();
     render();
     fit();
     renderPanel();
+    setStatus('Template added. Fill in what each agent is for, then export.', { clearAfter: 6000 });
     say('Template added. Fill in what each agent is for, then export.');
     requestAnimationFrame(() => focusField('description'));
   }

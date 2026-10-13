@@ -19,6 +19,7 @@ Templates for every size of job, steps that hand work over in files, and agents 
   - **Research, then write:** gather facts with sources, then write only from them.
   - **Spec first:** write a spec with WHEN/THEN scenarios to `spec.md`, get it approved, build it, and check every scenario. Inspired by [OpenSpec](https://github.com/Fission-AI/OpenSpec).
   - **Council:** a chair asks three read-only helpers on their own, then ranks and merges their answers. Inspired by [LLM Council](https://github.com/karpathy/llm-council).
+  - On an empty board, templates with a loop are laid out like **Arrange** does, so their back arrows don't cross.
 - **Reads files** and **Writes files** on agents and skills. The workflow tells each step which files to read first and where to save its result, so steps hand work to each other through files like `plan.md`. A step that reads a file no step writes gets a tip. The new templates use it.
 - **Plugins installed in Claude Code** appear in the import list. Their agents and skills are linked, not copied: the export refers to them as `plugin:name` and never writes their files.
 - **Download from GitHub or a marketplace.** At the top of the import list: enter a repository, a marketplace or a folder link, and pick the agents and skills to copy onto the board. Markdown and test scenarios come along; scripts are named, not downloaded. Each block remembers the repository and commit it came from.

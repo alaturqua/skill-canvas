@@ -186,32 +186,90 @@
     </section>
 
     <section id="templates" class="templates" aria-labelledby="templates-title">
-      <div class="card">
-        <span class="magnet red" aria-hidden="true"></span>
-        <span class="magnet blue" aria-hidden="true"></span>
+      <div class="section-head">
         <h2 id="templates-title">Templates for every size of job</h2>
-        <p>Pick one, then make it yours. The bigger ones come with their instructions filled in.</p>
-        <figure class="card-shot">
-          <img src="images/templates.png" alt="The template card in Skill Canvas: nine templates grouped as Small job, Medium job, Big job and Several opinions, with the Templates, Import and Clear board buttons in the block list on the left." width="2680" height="1560" loading="lazy">
-        </figure>
-        <div class="table-wrap">
-          <table>
-            <caption class="sr-only">Templates, grouped by the size of the job</caption>
-            <thead><tr><th scope="col">Job</th><th scope="col">Template</th><th scope="col">What it does</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Small</th><td data-label="Template">Single agent</td><td data-label="What it does">One agent for one kind of request</td></tr>
-              <tr><th scope="row">Small</th><td data-label="Template">Agent with a skill</td><td data-label="What it does">An agent that follows a reusable playbook</td></tr>
-              <tr><th scope="row">Small</th><td data-label="Template">Read-only reviewer</td><td data-label="What it does">Looks, but can't change anything</td></tr>
-              <tr><th scope="row">Medium</th><td data-label="Template">Try until it works</td><td data-label="What it does">Does the work, checks it, retries up to 3 times</td></tr>
-              <tr><th scope="row">Medium</th><td data-label="Template">Skill with a check</td><td data-label="What it does">Follows a playbook, checks the result, fixes it</td></tr>
-              <tr><th scope="row">Medium</th><td data-label="Template">Plan, build, review</td><td data-label="What it does">Separate agents plan, build and review, up to 3 rounds</td></tr>
-              <tr><th scope="row">Medium</th><td data-label="Template">Research, then write</td><td data-label="What it does">Facts with sources first, then text only from them</td></tr>
-              <tr><th scope="row">Big</th><td data-label="Template">Spec first</td><td data-label="What it does">A spec in <code>spec.md</code> you approve, built and checked scenario by scenario</td></tr>
-              <tr><th scope="row">Several opinions</th><td data-label="Template">Council</td><td data-label="What it does">Three helpers answer on their own; a chair ranks and merges them</td></tr>
-            </tbody>
-          </table>
+        <p>Start from a shape that works, then make it yours. The bigger ones come with their instructions filled in. Press <strong>Try it on the board</strong> on any note to load it into the live board above.</p>
+      </div>
+      <div class="tpl-board">
+        <div class="tpl-col">
+          <h3 class="tpl-col-title">Small job</h3>
+          <ul class="tpl-notes">
+          <li class="tpl-note canary">
+            <h3>Single agent</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="24" cy="16" r="6"/><rect x="52" y="9" width="16" height="14" rx="2"/><path d="M31 16H51"/><circle cx="96" cy="16" r="6"/><path d="M69 16H89"/></svg>
+            <p>One agent for one kind of request.</p>
+            <button type="button" class="tpl-try" data-template="agent" aria-label="Try Single agent on the board above">Try it on the board</button>
+          </li>
+          <li class="tpl-note canary">
+            <h3>Agent with a skill</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 44" aria-hidden="true"><circle cx="24" cy="16" r="6"/><rect x="52" y="9" width="16" height="14" rx="2"/><path d="M31 16H51"/><circle cx="96" cy="16" r="6"/><path d="M69 16H89"/><path class="dots" d="M60 24v8"/><rect x="53" y="33" width="14" height="9" rx="2"/></svg>
+            <p>An agent that follows a reusable playbook.</p>
+            <button type="button" class="tpl-try" data-template="skill" aria-label="Try Agent with a skill on the board above">Try it on the board</button>
+          </li>
+          <li class="tpl-note canary">
+            <h3>Read-only reviewer</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="24" cy="16" r="6"/><rect x="52" y="9" width="16" height="14" rx="2"/><path d="M31 16H51"/><circle cx="96" cy="16" r="6"/><path d="M69 16H89"/></svg>
+            <p>Looks at the work, but can't change anything.</p>
+            <button type="button" class="tpl-try" data-template="reviewer" aria-label="Try Read-only reviewer on the board above">Try it on the board</button>
+          </li>
+          </ul>
+        </div>
+        <div class="tpl-col">
+          <h3 class="tpl-col-title">Medium job</h3>
+          <ul class="tpl-notes">
+          <li class="tpl-note sky">
+            <h3>Try until it works</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="17" cy="16" r="6"/><path d="M44 11a7 7 0 1 0 1 7M45 6v6h-6"/><path d="M24 16H30"/><rect x="52" y="9" width="16" height="14" rx="2"/><path d="M46 16H51"/><path d="M82 7l9 9-9 9-9-9z"/><circle cx="103" cy="16" r="6"/><path d="M92 16H96"/></svg>
+            <p>Does the work, checks it, retries up to 3 times.</p>
+            <button type="button" class="tpl-try" data-template="retry" aria-label="Try Try until it works on the board above">Try it on the board</button>
+          </li>
+          <li class="tpl-note sky">
+            <h3>Skill with a check</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 44" aria-hidden="true"><circle cx="17" cy="16" r="6"/><path d="M44 11a7 7 0 1 0 1 7M45 6v6h-6"/><path d="M24 16H30"/><rect x="52" y="9" width="16" height="14" rx="2"/><path d="M46 16H51"/><path d="M82 7l9 9-9 9-9-9z"/><circle cx="103" cy="16" r="6"/><path d="M92 16H96"/><path class="dots" d="M60 24v8"/><rect x="53" y="33" width="14" height="9" rx="2"/></svg>
+            <p>Follows a playbook, checks the result, fixes it.</p>
+            <button type="button" class="tpl-try" data-template="checked" aria-label="Try Skill with a check on the board above">Try it on the board</button>
+          </li>
+          <li class="tpl-note sky">
+            <h3>Plan, build, review</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="17" cy="16" r="6"/><rect x="30" y="9" width="16" height="14" rx="2"/><path d="M24 16H29"/><path d="M66 11a7 7 0 1 0 1 7M67 6v6h-6"/><path d="M47 16H52"/><rect x="74" y="9" width="16" height="14" rx="2"/><path d="M68 16H73"/><path d="M103 7l9 9-9 9-9-9z"/></svg>
+            <p>Separate agents plan, build and review, up to 3 rounds.</p>
+            <button type="button" class="tpl-try" data-template="roles" aria-label="Try Plan, build, review on the board above">Try it on the board</button>
+          </li>
+          <li class="tpl-note sky">
+            <h3>Research, then write</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="20" cy="16" r="6"/><rect x="38" y="9" width="16" height="14" rx="2"/><path d="M26 16H38"/><rect x="66" y="9" width="16" height="14" rx="2"/><path d="M56 16H64"/><circle cx="100" cy="16" r="6"/><path d="M82 16H94"/></svg>
+            <p>Facts with sources first, then text only from them.</p>
+            <button type="button" class="tpl-try" data-template="research" aria-label="Try Research, then write on the board above">Try it on the board</button>
+          </li>
+          </ul>
+        </div>
+        <div class="tpl-col">
+          <h3 class="tpl-col-title">Big job</h3>
+          <ul class="tpl-notes">
+          <li class="tpl-note coral">
+            <h3>Spec first</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 30" aria-hidden="true"><circle cx="17" cy="16" r="6"/><rect x="30" y="9" width="16" height="14" rx="2"/><path d="M24 16H29"/><path d="M60 7l9 9-9 9-9-9z"/><rect x="74" y="9" width="16" height="14" rx="2"/><path d="M103 7l9 9-9 9-9-9z"/></svg>
+            <p>A spec in <code>spec.md</code> you approve, then built and checked scenario by scenario.</p>
+            <button type="button" class="tpl-try" data-template="spec" aria-label="Try Spec first on the board above">Try it on the board</button>
+          </li>
+          </ul>
+        </div>
+        <div class="tpl-col">
+          <h3 class="tpl-col-title">Several opinions</h3>
+          <ul class="tpl-notes">
+          <li class="tpl-note mint">
+            <h3>Council</h3>
+            <svg class="tpl-sketch" viewBox="0 0 120 44" aria-hidden="true"><circle cx="22" cy="12" r="6"/><path d="M29 12H50"/><rect x="52" y="5" width="16" height="14" rx="2"/><path d="M69 12H90"/><circle cx="98" cy="12" r="6"/><path class="dots" d="M60 20L34 31"/><rect x="27" y="32" width="14" height="9" rx="2"/><path class="dots" d="M60 20L60 31"/><rect x="53" y="32" width="14" height="9" rx="2"/><path class="dots" d="M60 20L86 31"/><rect x="79" y="32" width="14" height="9" rx="2"/></svg>
+            <p>Three helpers answer on their own; a chair ranks the answers and merges them.</p>
+            <button type="button" class="tpl-try" data-template="council" aria-label="Try Council on the board above">Try it on the board</button>
+          </li>
+          </ul>
         </div>
       </div>
+      <figure class="tpl-shot">
+        <img src="images/template-council.png" alt="The Council template on the board: Question leads to a Chair agent, which hands work to three helper agents, Correctness view, Simplicity view and Risk view, and then to Answer." width="1460" height="576" loading="lazy">
+        <figcaption>The Council template on the board. The live board needs a wider screen. <a href="demo/">Open it anyway</a></figcaption>
+      </figure>
     </section>
 
     <section id="import" class="import" aria-labelledby="import-title">
